@@ -11,6 +11,9 @@ class Response
 {
     protected Body $body;
 
+    /** @var list<Cookie> */
+    private array $cookies = [];
+
     /** @param array<string, string> $headers */
     public function __construct(
         string|Body $content = '',
@@ -80,6 +83,20 @@ class Response
         return $clone;
     }
 
+    public function withCookie(Cookie $cookie): self
+    {
+        $clone = clone $this;
+        $clone->cookies[] = $cookie;
+
+        return $clone;
+    }
+
+    /** @return list<Cookie> */
+    public function getCookies(): array
+    {
+        return $this->cookies;
+    }
+
     public function getStatus(): int
     {
         return $this->status;
@@ -113,6 +130,9 @@ class Response
             http_response_code($this->status);
             foreach ($this->headers as $name => $value) {
                 header($name . ': ' . $value, true);
+            }
+            foreach ($this->cookies as $cookie) {
+                header('Set-Cookie: ' . $cookie->toHeader(), false);
             }
         }
 

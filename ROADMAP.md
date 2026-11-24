@@ -22,7 +22,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.4.0` | Controllers and fast paths | Released |
 | `v0.5.0` | Native PHP template engine | Released |
 | `v0.6.0` | Phase 3 application features | Released |
-| `v0.7.0` | Developer tooling (dev-only) | Next |
+| `v0.7.0` | Phase 4 utilities | Released |
+| `v0.8.0` | Developer tooling (dev-only) | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -85,7 +86,16 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - Template layouts and shared data via `Template::render(..., $layout)` and `share()`.
 - Documentation for configuration, environment and DI.
 
-## v0.7.0 — Developer tooling (next)
+## v0.7.0 — Phase 4 utilities (released)
+
+- `Kurama\Validator` with rules, grouped errors and 422 rendering.
+- `Kurama\Session` with lazy native sessions, flash data and array-backed testing.
+- `Kurama\Csrf` with session tokens, header/body validation, middleware and 419 rendering.
+- `Kurama\Cookie` and `Response::withCookie()` for outgoing cookies.
+- `Kurama\Logger` with level methods and file output.
+- Documentation for all five utilities.
+
+## v0.8.0 — Developer tooling (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 

@@ -11,4 +11,8 @@ return [
     // 'views.path' => dirname(__DIR__) . '/views',
     // 'env.path' => dirname(__DIR__) . '/.env',
     'env.enabled' => true,
+
+    'session.name' => 'kurama_session',
+    'session.native' => true,
+    'log.path' => dirname(__DIR__) . '/storage/logs/app.log',
 ];

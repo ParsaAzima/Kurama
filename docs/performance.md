@@ -41,14 +41,16 @@ These numbers are indicative only. They measure routing and handler invocation i
 
 Measured on the same machine with PHP 8.3.30, 201 registered routes, 20,000 iterations, 500-iteration warmup, a no-op handler and reused request objects. Two separate categories were timed:
 
-| Layer | Library | req/s | Relative |
+| Layer | Library | Observed req/s range | Relative |
 | --- | --- | --- | --- |
-| Routing core | Native array lookup | ~18.8M | 1.8x faster than Kurama Router |
-| Routing core | Kurama Router | ~10.6M | baseline |
-| Routing core | FastRoute 1.3 | ~5.9M | ~1.8x slower than Kurama Router |
-| Full handling | Kurama Application | ~581k | baseline |
-| Full handling | Slim 4.15 | ~212k | ~2.7x slower than Kurama |
-| Full handling | Laravel 11 `Illuminate\Routing\Router` | ~2.8k | ~200x slower than Kurama |
+| Routing core | Native array lookup | 13–19M | faster than Kurama Router |
+| Routing core | Kurama Router | 5–11M | typically ahead of FastRoute here |
+| Routing core | FastRoute 1.3 | 4–6M | same order as Kurama Router |
+| Full handling | Kurama Application | 400–580k | baseline |
+| Full handling | Slim 4.15 | 130–215k | ~2–3x slower than Kurama |
+| Full handling | Laravel 11 `Illuminate\Routing\Router` | 1.8–2.8k | two orders of magnitude slower |
+
+Absolute numbers varied noticeably between runs on the same machine, so ranges are reported instead of a single number. The relative ordering was stable in repeated runs.
 
 Important caveats:
 

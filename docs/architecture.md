@@ -32,6 +32,11 @@ The core has no knowledge of superglobals, HTTP responses, middleware or control
 | `Kurama\Container` | Small PSR-11-style container with auto-wiring. |
 | `Kurama\Config` | Dot-notation configuration repository. |
 | `Kurama\Environment` | `.env` loader. |
+| `Kurama\Validator` | Rule-based validation with grouped errors. |
+| `Kurama\Session` | Lazy session wrapper with flash data. |
+| `Kurama\Csrf` | Session-backed CSRF tokens and middleware. |
+| `Kurama\Cookie` | Cookie value object emitted by `Response`. |
+| `Kurama\Logger` | Minimal file logger. |
 
 You can use the router without the application layer, and the application layer without adding any container or provider.
 

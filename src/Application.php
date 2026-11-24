@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kurama;
 
 use InvalidArgumentException;
+use Kurama\Exceptions\HttpException;
 use Kurama\Exceptions\MethodNotAllowedException;
 use Kurama\Exceptions\RouteNotFoundException;
+use Kurama\Exceptions\ValidationException;
 use Throwable;
 
 /**
@@ -26,6 +28,12 @@ class Application
     public readonly Environment $environment;
 
     public readonly Container $container;
+
+    public readonly Session $session;
+
+    public readonly Csrf $csrf;
+
+    public readonly Logger $logger;
 
     /** @var list<callable> */
     private array $middleware = [];
@@ -70,6 +78,14 @@ class Application
         if (($timezone = $this->configuration->get('timezone')) !== null) {
             date_default_timezone_set((string) $timezone);
         }
+
+        $this->session = new Session(
+            $this->configuration->get('session.name'),
+            (bool) $this->configuration->get('session.native', true),
+        );
+        $this->csrf = new Csrf($this->session);
+        $logPath = (string) $this->configuration->get('log.path', $base . '/storage/logs/app.log');
+        $this->logger = new Logger($logPath);
 
         $this->registerCoreBindings();
     }
@@ -152,6 +168,17 @@ class Application
     public function env(string $key, mixed $default = null): mixed
     {
         return $this->environment->get($key, $default);
+    }
+
+    /** Validate data and return only validated fields. */
+    public function validate(array $data, array $rules): array
+    {
+        $validator = Validator::make($data, $rules);
+        if ($validator->fails()) {
+            throw new ValidationException($validator->errors());
+        }
+
+        return $validator->validated();
     }
 
     public function url(string $name, array $params = []): string
@@ -244,6 +271,12 @@ class Application
         $this->container->instance('config', $this->configuration);
         $this->container->instance(Environment::class, $this->environment);
         $this->container->instance('env', $this->environment);
+        $this->container->instance(Session::class, $this->session);
+        $this->container->instance('session', $this->session);
+        $this->container->instance(Csrf::class, $this->csrf);
+        $this->container->instance('csrf', $this->csrf);
+        $this->container->instance(Logger::class, $this->logger);
+        $this->container->instance('logger', $this->logger);
     }
 
     /** Build a reusable action runner for a resolved handler. */
@@ -301,12 +334,17 @@ class Application
         $status = 500;
         $headers = [];
 
+        if ($exception instanceof HttpException) {
+            $status = $exception->status;
+            $headers = $exception->headers;
+        }
+
         if ($exception instanceof RouteNotFoundException) {
             $status = 404;
         } elseif ($exception instanceof MethodNotAllowedException) {
             $status = 405;
             $headers['Allow'] = implode(', ', $exception->allowedMethods());
-        } elseif (!$debug) {
+        } elseif (!$debug && !($exception instanceof HttpException)) {
             error_log(sprintf(
                 '[Kurama] %s: %s in %s:%d',
                 get_class($exception),
@@ -318,6 +356,9 @@ class Application
 
         $message = $debug ? $exception->getMessage() : $this->statusText($status);
         $payload = ['error' => ['status' => $status, 'message' => $message]];
+        if ($exception instanceof ValidationException) {
+            $payload['errors'] = $exception->errors();
+        }
 
         if ($request->wantsJson() || str_starts_with($request->path(), '/api')) {
             return Response::json($payload, $status, $headers);
@@ -337,6 +378,8 @@ class Application
         return match ($status) {
             404 => 'Not Found',
             405 => 'Method Not Allowed',
+            419 => 'Page Expired',
+            422 => 'Unprocessable Entity',
             500 => 'Internal Server Error',
             default => 'Error',
         };

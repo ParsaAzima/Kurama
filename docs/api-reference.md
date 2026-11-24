@@ -6,7 +6,7 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 
 | Method | Description |
 | --- | --- |
-| `static create(array\|Config $config = [], ?string $basePath = null, ?Container $container = null): Application` | Create an application. Keys: `debug`, `timezone`, `views.path`, `env.path`, `env.enabled`. |
+| `static create(array\|Config $config = [], ?string $basePath = null, ?Container $container = null): Application` | Create an application. Keys: `debug`, `timezone`, `views.path`, `env.path`, `env.enabled`, `session.name`, `session.native`, `log.path`. |
 
 ## Application
 
@@ -21,6 +21,7 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `url(string $name, array $params = []): string` | Build URL from a named route. |
 | `urlFor(string $name, array $params = []): string` | Alias of `url()`. |
 | `config(string $key, mixed $default = null)` / `env(...)` | Read configuration / environment values. |
+| `validate(array $data, array $rules): array` | Validate and return validated fields, or throw `ValidationException`. |
 | `render(string $template, array $data = [], int $status = 200, ?string $layout = null): Response` | Render a template into an HTML response. |
 | `setErrorHandler(callable $handler): self` | Set custom error renderer. |
 | `handle(Request $request): Response` | Dispatch without sending output. |
@@ -30,6 +31,7 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `configuration` (public readonly `Config`) | Configuration repository. |
 | `environment` (public readonly `Environment`) | Environment variables. |
 | `container` (public readonly `Container`) | DI container. |
+| `session`, `csrf`, `logger` (public readonly) | Phase 4 utilities. |
 
 ## Router
 
@@ -105,6 +107,20 @@ See [response.md](response.md) for details.
 | `__construct(string $content = '')` | Create with initial content. |
 | `write(string $data): self` | Append data. |
 | `__toString(): string` | Current content. |
+
+## Validation, session, CSRF, cookies and logging
+
+See [validation.md](validation.md), [session.md](session.md), [csrf.md](csrf.md), [cookie.md](cookie.md) and [logging.md](logging.md).
+
+| Class | Key members |
+| --- | --- |
+| `Validator` | `make()`, `passes()`, `fails()`, `errors()`, `validated()`. |
+| `Session` | `fake()`, `start()`, `get()`, `set()`, `has()`, `remove()`, `all()`, `flush()`, `flash()`, `flashed()`, `regenerate()`, `destroy()`. |
+| `Csrf` | `token()`, `field()`, `validate()`, `validateRequest()`, `regenerate()`, `middleware()`. |
+| `Cookie` | `delete()`, `toHeader()`; public name/value/attributes. |
+| `Logger` | `emergency()`, `alert()`, `critical()`, `error()`, `warning()`, `notice()`, `info()`, `debug()`, `log()`. |
+| `HttpException` | `status`, `headers`. |
+| `ValidationException` | `errors()`. |
 
 ## Container
 

@@ -55,6 +55,9 @@ Dotted keys passed to `load()` are normalized into nested arrays, so `['views.pa
 | `views.path` | Template directory. | `<project root>/views` |
 | `env.path` | `.env` file location. | `<project root>/.env` |
 | `env.enabled` | Whether to auto-load `.env`. | `true` |
+| `session.name` | PHP session name. | `kurama_session` |
+| `session.native` | Use native PHP sessions. | `true` |
+| `log.path` | Log file location. | `<project root>/storage/logs/app.log` |
 
 Other keys are stored untouched and can be used by your own code via `$app->config(...)` or by injecting `Kurama\Config`.
 

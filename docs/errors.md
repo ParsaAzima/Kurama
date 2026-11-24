@@ -29,6 +29,8 @@ These exceptions are plain `RuntimeException` subclasses; they are not coupled t
 
 Invalid route definitions throw `InvalidArgumentException` at registration time: bad pattern, empty method list, unsupported method, non-callable handler, invalid name or unsafe constraint.
 
+`Kurama\Exceptions\HttpException` is a general status-carrying exception. `ValidationException` (422) and `CsrfTokenMismatchException` (419) extend it.
+
 ## Application error rendering
 
 `Application::handle()` catches every `Throwable` and renders a response:
@@ -37,6 +39,9 @@ Invalid route definitions throw `InvalidArgumentException` at registration time:
 | --- | --- | --- |
 | No path matched | 404 | — |
 | Path matched, method not allowed | 405 | `Allow` with registered methods |
+| Validation failed (`ValidationException`) | 422 | JSON includes `errors`. |
+| CSRF mismatch (`CsrfTokenMismatchException`) | 419 | — |
+| Other `HttpException` | Its `status` | Its `headers`. |
 | Handler or middleware threw | 500 | — |
 
 Response format:

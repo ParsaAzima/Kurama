@@ -226,6 +226,24 @@ $app->get('/legacy', UserController::class . '@showLegacy');
 
 Inside a controller you get `request()`, `response()`, `param()`, `json()`, `text()`, `html()` and `redirect()`. Controllers must have a no-argument constructor; otherwise pass an already-created instance as the handler. The Slim-style `($request, $response, $args)` signature also works on controller methods.
 
+## Utilities
+
+Phase 4 adds five small utilities, all available on `Application` and in the container:
+
+```php
+$validated = $app->validate($_POST, ['email' => 'required|email']);
+
+$app->session->set('user', 42);
+$token = $app->csrf->token();
+$app->middleware($app->csrf->middleware());
+
+return Response::text('ok')->withCookie(new Kurama\Cookie('theme', 'dark'));
+
+$app->logger->info('User registered', ['id' => 42]);
+```
+
+Validation failures return **422** with grouped `errors`, CSRF failures return **419**. See [docs/validation.md](docs/validation.md), [docs/session.md](docs/session.md), [docs/csrf.md](docs/csrf.md), [docs/cookie.md](docs/cookie.md) and [docs/logging.md](docs/logging.md).
+
 ## Templates
 
 Kurama ships with a tiny native-PHP template engine — no Twig/Blade dependency.
@@ -387,7 +405,7 @@ vendor/bin/phpunit
 
 Not included (see [ROADMAP.md](ROADMAP.md)):
 
-- Database/ORM, authentication, sessions or cookies.
+- Database/ORM or authentication (session, cookie, CSRF and logging utilities are included).
 - Third-party template engines and template caching (the built-in native-PHP engine with layouts is included).
 - Service providers, auto-discovery and event buses (a small explicit container is included).
 - Route caching and automatic URL generation for unnamed routes.

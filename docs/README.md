@@ -15,6 +15,11 @@ Start here:
 | Dependency injection | [dependency-injection.md](dependency-injection.md) |
 | Configuration | [configuration.md](configuration.md) |
 | Environment variables | [environment.md](environment.md) |
+| Validation | [validation.md](validation.md) |
+| Session | [session.md](session.md) |
+| CSRF protection | [csrf.md](csrf.md) |
+| Cookies | [cookie.md](cookie.md) |
+| Logging | [logging.md](logging.md) |
 | Request object | [request.md](request.md) |
 | Response and JSON response | [response.md](response.md) |
 | Exceptions and error rendering | [errors.md](errors.md) |

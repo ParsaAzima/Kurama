@@ -7,6 +7,7 @@ namespace Kurama\Tests;
 use Kurama\AppFactory;
 use Kurama\Application;
 use Kurama\Config;
+use Kurama\Cookie;
 use Kurama\JsonResponse;
 use Kurama\Request;
 use Kurama\Template;
@@ -303,6 +304,63 @@ final class ApplicationTest extends TestCase
         });
 
         self::assertSame('Hi parsa', $app->handle(new Request('GET', '/service/parsa'))->getContent());
+    }
+
+    public function testUtilityServicesAreBound(): void
+    {
+        $app = AppFactory::create();
+
+        self::assertSame($app->session, $app->container->get('session'));
+        self::assertSame($app->csrf, $app->container->get('csrf'));
+        self::assertSame($app->logger, $app->container->get('logger'));
+    }
+
+    public function testValidateHelperThrowsValidationExceptionAsJson(): void
+    {
+        $app = new Application(['debug' => true]);
+        $app->post('/signup', function (Request $request) use ($app): Response {
+            $data = $app->validate($request->all(), [
+                'email' => 'required|email',
+                'name' => 'required|min:3',
+            ]);
+
+            return Response::json($data);
+        });
+
+        $response = $app->handle(new Request(
+            'POST',
+            '/signup',
+            body: ['email' => 'bad', 'name' => 'x'],
+            headers: ['Accept' => 'application/json'],
+        ));
+
+        self::assertSame(422, $response->getStatus());
+        $payload = json_decode($response->getContent(), true);
+        self::assertArrayHasKey('email', $payload['errors']);
+        self::assertArrayHasKey('name', $payload['errors']);
+    }
+
+    public function testCsrfMiddlewareRejectsPostWith419(): void
+    {
+        $_SESSION = [];
+        $app = new Application(['debug' => true, 'session.native' => false]);
+        $app->middleware($app->csrf->middleware());
+        $app->post('/x', static fn (): Response => Response::text('ok'));
+
+        $response = $app->handle(new Request('POST', '/x'));
+
+        self::assertSame(419, $response->getStatus());
+    }
+
+    public function testHandlerCanAttachCookie(): void
+    {
+        $app = new Application();
+        $app->get('/cookie', static fn (): Response => Response::text('ok')->withCookie(new Cookie('a', 'b')));
+
+        $response = $app->handle(new Request('GET', '/cookie'));
+
+        self::assertCount(1, $response->getCookies());
+        self::assertStringContainsString('a=b', $response->getCookies()[0]->toHeader());
     }
 
     public function testRunUsesExplicitMethodAndUri(): void
