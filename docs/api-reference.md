@@ -6,13 +6,13 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 
 | Method | Description |
 | --- | --- |
-| `static create(array $config = []): Application` | Create an application. Config keys: `debug`, `timezone`. |
+| `static create(array $config = [], ?string $basePath = null): Application` | Create an application. Config keys: `debug`, `timezone`, `views.path`. |
 
 ## Application
 
 | Method | Description |
 | --- | --- |
-| `__construct(array $config = [], ?Router $router = null)` | Create with config and optional router instance. |
+| `__construct(array $config = [], ?Router $router = null, ?string $basePath = null)` | Create with config, optional router and project root. |
 | `get/post/put/patch/delete/options/head/any(string $pattern, mixed $handler): Route` | Register a route. |
 | `match(array\|string $methods, string $pattern, mixed $handler): Route` | Register for one or more methods. |
 | `group(array $attributes, callable $callback): void` | Prefix/middleware group; callback receives `Application`. |
@@ -20,10 +20,12 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `add(callable ...$middleware): self` | Alias of `middleware()`. |
 | `url(string $name, array $params = []): string` | Build URL from a named route. |
 | `urlFor(string $name, array $params = []): string` | Alias of `url()`. |
+| `render(string $template, array $data = [], int $status = 200): Response` | Render a template into an HTML response. |
 | `setErrorHandler(callable $handler): self` | Set custom error renderer. |
 | `handle(Request $request): Response` | Dispatch without sending output. |
 | `run(?Request $request = null): void` | Dispatch and send response. |
 | `router` (public readonly `Router`) | Underlying router. |
+| `template` (public readonly `Template`) | Template engine instance. |
 
 ## Router
 
@@ -100,11 +102,24 @@ See [response.md](response.md) for details.
 | `write(string $data): self` | Append data. |
 | `__toString(): string` | Current content. |
 
+## Template
+
+See [templates.md](templates.md) for details.
+
+| Method | Description |
+| --- | --- |
+| `__construct(string $basePath, string $extension = '.php')` | Create with a views directory. |
+| `render(string $template, array $data = []): string` | Render to a string. |
+| `path(string $template): string` | Resolve name to file path. |
+| `exists(string $template): bool` | Check existence. |
+| `escape(string $value): string` | HTML escape. |
+| `e(string $value): string` | Alias of `escape()`. |
+
 ## Controller
 
 See [controllers.md](controllers.md) for details.
 
-`setContext()`, `request()`, `response()`, `param()`, `json()`, `text()`, `html()`, `redirect()`.
+`setContext()`, `request()`, `response()`, `param()`, `json()`, `text()`, `html()`, `redirect()`, `view()`, `template()`.
 
 ## Exceptions
 

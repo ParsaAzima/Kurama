@@ -11,6 +11,7 @@ Start here:
 | Routes, parameters, constraints, groups, named URLs | [routing.md](routing.md) |
 | Middleware pipeline | [middleware.md](middleware.md) |
 | Controllers | [controllers.md](controllers.md) |
+| Native PHP templates | [templates.md](templates.md) |
 | Request object | [request.md](request.md) |
 | Response and JSON response | [response.md](response.md) |
 | Exceptions and error rendering | [errors.md](errors.md) |

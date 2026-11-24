@@ -28,6 +28,7 @@ The core has no knowledge of superglobals, HTTP responses, middleware or control
 | `Kurama\JsonResponse` | JSON-encoded response. |
 | `Kurama\Body` | Tiny writable body used by `Response::getBody()`. |
 | `Kurama\Controller` | Optional base class for grouped actions. |
+| `Kurama\Template` | Minimal native-PHP template engine with escaping and partials. |
 
 You can use the router without the application layer, and the application layer without adding any container or provider.
 
@@ -38,7 +39,7 @@ You can use the router without the application layer, and the application layer 
 3. `RouteMatcher` finds the first matching route or throws a routing exception.
 4. Matched parameters are attached to the request copy via `withParams()`.
 5. A fresh default `Response` is created.
-6. Global, group and route middleware wrap a final action closure.
+6. Global, group and route middleware wrap a final action closure. Controllers receive the request, response and template engine.
 7. The action resolves the handler (closure, callable, controller notation), injects arguments and executes it.
 8. Non-`Response` results are wrapped with `Response::make()`.
 9. Any `Throwable` is rendered by the error handler.

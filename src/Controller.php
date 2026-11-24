@@ -18,10 +18,13 @@ abstract class Controller
 
     private ?Response $response = null;
 
-    public function setContext(Request $request, Response $response): void
+    private ?Template $template = null;
+
+    public function setContext(Request $request, Response $response, ?Template $template = null): void
     {
         $this->request = $request;
         $this->response = $response;
+        $this->template = $template;
     }
 
     protected function request(): Request
@@ -57,5 +60,16 @@ abstract class Controller
     protected function redirect(string $url, int $status = 302): Response
     {
         return Response::redirect($url, $status);
+    }
+
+    /** Render a template into an HTML response. */
+    protected function view(string $template, array $data = [], int $status = 200): Response
+    {
+        return Response::html($this->template()->render($template, $data), $status);
+    }
+
+    protected function template(): Template
+    {
+        return $this->template ?? throw new LogicException('Controller has no template engine.');
     }
 }

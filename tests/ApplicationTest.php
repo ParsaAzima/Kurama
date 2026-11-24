@@ -256,6 +256,17 @@ final class ApplicationTest extends TestCase
         self::assertSame('/users/42', $app->urlFor('user.show', ['id' => 42]));
     }
 
+    public function testRenderHelperReturnsHtmlResponse(): void
+    {
+        $app = new Application(['views.path' => __DIR__ . '/fixtures/views']);
+
+        $response = $app->render('hello', ['name' => 'Kurama']);
+
+        self::assertSame(200, $response->getStatus());
+        self::assertSame('text/html; charset=UTF-8', $response->getHeader('Content-Type'));
+        self::assertSame('Hello Kurama', trim($response->getContent()));
+    }
+
     public function testRunUsesExplicitMethodAndUri(): void
     {
         $app = new Application();

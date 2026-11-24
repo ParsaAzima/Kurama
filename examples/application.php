@@ -19,6 +19,14 @@ final class DemoController extends Controller
             'ip' => $this->request()->ip(),
         ]);
     }
+
+    public function page(string $name): Response
+    {
+        return $this->view('home', [
+            'title' => 'Kurama Controller',
+            'name' => $this->param('name'),
+        ]);
+    }
 }
 
 $app = AppFactory::create(['debug' => true]);
@@ -40,6 +48,11 @@ $app->get('/hello/{name}', function (Request $request, Response $response, array
 });
 
 $app->get('/controller/{name}', [DemoController::class, 'show']);
+$app->get('/controller/view/{name}', [DemoController::class, 'page']);
+$app->get('/view/{name}', fn (string $name): Response => $app->render('home', [
+    'title' => 'Kurama',
+    'name' => $name,
+]));
 
 $app->group(['prefix' => '/api'], function (Application $app): void {
     $app->get('/ping', function (Request $request, Response $response): Response {

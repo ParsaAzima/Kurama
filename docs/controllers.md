@@ -52,8 +52,9 @@ A controller with required constructor arguments registered by class name produc
 | `json(mixed $data, int $status = 200, array $headers = [])` | `JsonResponse`. |
 | `text(...)`, `html(...)` | Text/HTML responses. |
 | `redirect(string $url, int $status = 302)` | Redirect response. |
+| `view(string $template, array $data = [], int $status = 200)` | Render a native PHP template into an HTML response. |
 
-`setContext(Request, Response)` is called by the framework before the action. You normally do not call it yourself.
+`setContext(Request, Response, ?Template)` is called by the framework before the action. You normally do not call it yourself. The template instance is what makes `view()` work; see [templates.md](templates.md).
 
 ## Handler arguments
 

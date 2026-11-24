@@ -23,6 +23,8 @@ class Application
 {
     public readonly Router $router;
 
+    public readonly Template $template;
+
     /** @var list<callable> */
     private array $middleware = [];
 
@@ -35,8 +37,13 @@ class Application
     public function __construct(
         private readonly array $config = [],
         ?Router $router = null,
+        ?string $basePath = null,
     ) {
         $this->router = $router ?? new Router();
+
+        $base = $basePath ?? dirname(__DIR__);
+        $viewsPath = $config['views.path'] ?? $base . '/views';
+        $this->template = new Template((string) $viewsPath);
 
         if (isset($config['timezone']) && is_string($config['timezone'])) {
             date_default_timezone_set($config['timezone']);
@@ -126,6 +133,12 @@ class Application
         return $this->url($name, $params);
     }
 
+    /** Render a template into an HTML response. */
+    public function render(string $template, array $data = [], int $status = 200): Response
+    {
+        return Response::html($this->template->render($template, $data), $status);
+    }
+
     /** Override default error rendering: fn (Throwable $e, Request $request) => Response|mixed */
     public function setErrorHandler(callable $handler): self
     {
@@ -151,7 +164,7 @@ class Application
             $action = function (Request $request) use ($route, $parameters, $initialResponse): mixed {
                 $handler = $this->resolveHandler($route->handler());
                 if (is_array($handler) && $handler[0] instanceof Controller) {
-                    $handler[0]->setContext($request, $initialResponse);
+                    $handler[0]->setContext($request, $initialResponse, $this->template);
                 }
 
                 $output = $this->invoke($handler, $parameters, $request, $initialResponse);

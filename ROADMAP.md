@@ -20,7 +20,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.2.0` | Application layer, HTTP, groups, middleware, errors | Released |
 | `v0.3.0` | Named routes and constraints | Released |
 | `v0.4.0` | Controllers and fast paths | Released |
-| `v0.5.0` | Developer tooling (dev-only) | Next |
+| `v0.5.0` | Native PHP template engine | Released |
+| `v0.6.0` | Developer tooling (dev-only) | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -67,7 +68,14 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - Static routes matched with plain string comparison instead of regex; regexes compiled once at registration.
 - Small benchmark script comparing static vs dynamic matching.
 
-## v0.5.0 — Developer tooling (next)
+## v0.5.0 — Native PHP template engine (released)
+
+- `Kurama\Template` with dot-notation names, partial rendering, explicit escaping and path-traversal protection.
+- `Application::render()` and `Controller::view()` helpers.
+- Configurable `views.path` with a `<project root>/views` default.
+- Example templates in `views/` and full documentation in `docs/templates.md`.
+
+## v0.6.0 — Developer tooling (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 

@@ -24,11 +24,7 @@ $app->add(function (Request $request, callable $next): Response {
     return $response->withHeader('X-Response-Time', number_format((microtime(true) - $start) * 1000, 2) . 'ms');
 });
 
-$app->get('/', function (Request $request, Response $response): Response {
-    $response->getBody()->write('<h1>Hello from Kurama!</h1>');
-
-    return $response;
-});
+$app->get('/', fn (): Response => $app->render('home', ['title' => 'Kurama']));
 
 $app->group(['prefix' => '/api'], function (Application $app): void {
     $app->get('/ping', function (Request $request, Response $response): Response {

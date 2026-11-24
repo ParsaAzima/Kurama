@@ -83,6 +83,7 @@ src/           Framework source (Kurama namespace)
 public/        Front controller
 tests/         PHPUnit tests
 examples/      Runnable examples
+views/         Native PHP templates
 docs/          This documentation
 ROADMAP.md     Planned versions
 ```

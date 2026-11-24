@@ -77,10 +77,15 @@ src/
 ├── Request.php            Incoming HTTP request value object
 ├── Response.php           HTTP response value object
 ├── JsonResponse.php       JSON-encoded response
+├── Template.php           Native PHP template engine
+├── Controller.php         Optional base controller
+├── AppFactory.php         Slim-style factory
 └── Exceptions/            RouteNotFoundException, MethodNotAllowedException
 public/index.php           Front controller
+views/                     Native PHP templates
 tests/                     PHPUnit tests
 examples/                  Runnable examples
+docs/                      Complete documentation
 ```
 
 ## HTTP methods
@@ -221,6 +226,27 @@ $app->get('/legacy', UserController::class . '@showLegacy');
 
 Inside a controller you get `request()`, `response()`, `param()`, `json()`, `text()`, `html()` and `redirect()`. Controllers must have a no-argument constructor; otherwise pass an already-created instance as the handler. The Slim-style `($request, $response, $args)` signature also works on controller methods.
 
+## Templates
+
+Kurama ships with a tiny native-PHP template engine — no Twig/Blade dependency.
+
+```php
+$app = AppFactory::create(['views.path' => __DIR__ . '/../views']);
+
+$app->get('/', fn (): Response => $app->render('home', ['title' => 'Kurama']));
+```
+
+Inside a controller: `$this->view('home', ['title' => 'Kurama'])`.
+
+Templates are plain PHP files; dot notation maps to subdirectories (`partials.greeting` → `views/partials/greeting.php`). Inside a template, `$this` is the `Template` instance:
+
+```php
+<h1><?= $this->escape($title) ?></h1>
+<?= $this->render('partials.greeting', ['name' => 'world']) ?>
+```
+
+See [docs/templates.md](docs/templates.md) for the full API and safety rules.
+
 ## Basic middleware
 
 Middleware is any callable with the signature `fn (Request $request, callable $next): Response`.
@@ -335,7 +361,7 @@ vendor/bin/phpunit
 Not included (see [ROADMAP.md](ROADMAP.md)):
 
 - Database/ORM, authentication, sessions or cookies.
-- Template engines or view layers.
+- Third-party template engines, layout inheritance and template caching (the built-in native-PHP engine is included).
 - Dependency injection containers, service providers or event buses.
 - Route caching and automatic URL generation for unnamed routes.
 - Full CLI kernel or automatic OPTIONS responses.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kurama\Tests;
 
 use Kurama\AppFactory;
+use Kurama\Application;
 use Kurama\Controller;
 use Kurama\Request;
 use Kurama\Response;
@@ -57,6 +58,16 @@ final class ControllerTest extends TestCase
         self::assertSame(['id' => '2', 'method' => 'GET'], json_decode($second, true));
     }
 
+    public function testControllerViewHelper(): void
+    {
+        $app = new Application(['views.path' => __DIR__ . '/fixtures/views']);
+        $app->get('/page', [UserController::class, 'page']);
+
+        $response = $app->handle(new Request('GET', '/page'));
+
+        self::assertSame('Hello Controller', trim($response->getContent()));
+    }
+
     public function testControllerWithRequiredConstructorArgumentsIsRejected(): void
     {
         $app = AppFactory::create();
@@ -88,6 +99,11 @@ final class UserController extends Controller
         $response->getBody()->write('users:' . ($args['id'] ?? ''));
 
         return $response;
+    }
+
+    public function page(): Response
+    {
+        return $this->view('hello', ['name' => 'Controller']);
     }
 }
 
