@@ -124,6 +124,28 @@ final class Router
         return $this->routes;
     }
 
+    public function named(string $name): ?Route
+    {
+        return $this->routes->findByName($name);
+    }
+
+    /** @param array<string, mixed> $params */
+    public function url(string $name, array $params = []): string
+    {
+        $route = $this->named($name);
+        if ($route === null) {
+            throw new InvalidArgumentException("Route [{$name}] is not defined.");
+        }
+
+        return $route->uri($params);
+    }
+
+    /** Alias for Slim-style `urlFor()`. */
+    public function urlFor(string $name, array $params = []): string
+    {
+        return $this->url($name, $params);
+    }
+
     /**
      * Convenience HTTP entry point: dispatch, encode and emit the result.
      *

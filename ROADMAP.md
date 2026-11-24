@@ -18,8 +18,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | --- | --- | --- |
 | `v0.1.0` | Router core + standalone `run()` | Released |
 | `v0.2.0` | Application layer, HTTP, groups, middleware, errors | Released |
-| `v0.3.0` | Router completeness | Next |
-| `v0.4.0` | Developer tooling (dev-only) | Planned |
+| `v0.3.0` | Named routes and constraints | Released |
+| `v0.4.0` | Developer tooling (dev-only) | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -47,31 +47,25 @@ Milestones are feature-driven, not date-driven. A version ships when its accepta
 - Slim-style developer experience: `AppFactory::create()`, handler signature `($request, $response, $args)`, `$response->getBody()->write()`, `$app->add()` / `$route->add()`.
 - Service-free design: no container, no providers, no static global instance, no PSR-7 dependency.
 
-## v0.3.0 — Router completeness (next)
+## v0.3.0 — Named routes and constraints (released)
 
-Goal: finish routing features without adding new architectural layers.
-
-- Named routes with `Router::url(string $name, array $params = []): string`.
-- Optional inline parameter constraints, e.g. `/users/{id:\d+}`, with strict validation so unsafe regex cannot be injected.
+- Named routes with `Route::name()`, `Router::url()` / `Application::url()` and Slim-style `urlFor()` aliases.
+- Inline parameter constraints, e.g. `/users/{id:\d+}` and `/posts/{year:\d{4}}/{slug:[a-z-]+}`.
+- Constraint validation: no empty match, no `/` match, no backreferences and no regex delimiter.
+- URL generation validates values against constraints before percent-encoding them.
 - `RouteCollection::findByName()` for inspection.
-- `Allow` header includes implicit `HEAD` whenever `GET` is allowed.
-- CI checks: `php -l`, PHPUnit and a PSR-12 style check.
-- Small benchmark script comparing static vs dynamic matching.
-
-Acceptance criteria:
-
 - All v0.1/v0.2 APIs remain backward compatible.
-- Constraints cannot match across `/` unless explicitly written to do so.
-- Tests for named URLs, constraints, `HEAD` in `Allow`, and malformed constraint definitions.
 
 Explicitly out of scope: global helper functions, DI containers, templates.
 
-## v0.4.0 — Developer tooling (planned)
+## v0.4.0 — Developer tooling (next)
 
-Goal: improve workflow without adding runtime dependencies.
+Goal: improve workflow and quality gates without adding runtime dependencies.
 
+- CI checks: `php -l`, PHPUnit and a PSR-12 style check.
+- Small benchmark script comparing static vs dynamic matching.
+- `Allow` header includes implicit `HEAD` whenever `GET` is allowed.
 - `route:list` dev command that prints registered methods, patterns and middleware.
-- Improved built-in server script with static-file handling and clean shutdown.
 - Migration guide from v0.1 to v0.3+.
 
 Acceptance criteria:

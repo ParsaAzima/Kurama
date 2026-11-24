@@ -7,14 +7,15 @@ namespace Kurama;
 use InvalidArgumentException;
 
 /**
- * A single registered route: HTTP methods, path pattern and handler.
+ * A single registered route: HTTP methods, path pattern, handler and metadata.
  *
- * Placeholders use the {name} syntax and may only contain URL-safe
- * characters (no URL separator "/").
+ * Placeholders use {name} or {name:constraint}, e.g. /users/{id:\d+}.
  */
 final class Route
 {
     private const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'ANY'];
+
+    private const PLACEHOLDER = '/\{([A-Za-z_][A-Za-z0-9_]*)(?::((?:[^{}]|\{[^{}]*\})*))?\}/';
 
     private readonly string $pattern;
 
@@ -26,7 +27,15 @@ final class Route
     /** @var list<string> */
     private readonly array $parameterNames;
 
+    /** @var array<string, string> */
+    private readonly array $constraints;
+
     private readonly string $regex;
+
+    private ?string $routeName = null;
+
+    /** @var list<callable> */
+    private array $middleware = [];
 
     /**
      * @param list<string> $methods
@@ -45,9 +54,6 @@ final class Route
         $this->regex = $this->compilePattern();
     }
 
-    /** @var list<callable> */
-    private array $middleware = [];
-
     public function middleware(callable ...$middleware): self
     {
         array_push($this->middleware, ...$middleware);
@@ -65,6 +71,22 @@ final class Route
     public function middlewares(): array
     {
         return $this->middleware;
+    }
+
+    public function name(string $name): self
+    {
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_.-]*$/', $name) !== 1) {
+            throw new InvalidArgumentException('Invalid route name "' . $name . '".');
+        }
+
+        $this->routeName = $name;
+
+        return $this;
+    }
+
+    public function getName(): ?string
+    {
+        return $this->routeName;
     }
 
     /** @return list<string> */
@@ -87,6 +109,12 @@ final class Route
     public function parameterNames(): array
     {
         return $this->parameterNames;
+    }
+
+    /** @return array<string, string> */
+    public function constraints(): array
+    {
+        return $this->constraints;
     }
 
     /**
@@ -122,6 +150,35 @@ final class Route
         }
 
         return $parameters;
+    }
+
+    /**
+     * Build a concrete URI, validating each value against its constraint.
+     *
+     * @param array<string, mixed> $params
+     */
+    public function uri(array $params = []): string
+    {
+        return preg_replace_callback(
+            self::PLACEHOLDER,
+            function (array $match) use ($params): string {
+                $name = $match[1];
+                if (!array_key_exists($name, $params)) {
+                    throw new InvalidArgumentException("Missing route parameter [{$name}].");
+                }
+
+                $value = (string) $params[$name];
+                $constraint = $this->constraints[$name] ?? '[^/]+';
+                if (@preg_match('~^(?:' . $constraint . ')$~D', $value) !== 1) {
+                    throw new InvalidArgumentException(
+                        "Value [{$value}] does not match the constraint for [{$name}].",
+                    );
+                }
+
+                return rawurlencode($value);
+            },
+            $this->pattern,
+        );
     }
 
     /**
@@ -169,12 +226,17 @@ final class Route
     private function compilePattern(): string
     {
         $pattern = $this->pattern;
-        preg_match_all('/\{([^{}]*)\}/', $pattern, $matches, PREG_OFFSET_CAPTURE);
+        preg_match_all(self::PLACEHOLDER, $pattern, $matches, PREG_OFFSET_CAPTURE);
 
-        if (
-            substr_count($pattern, '{') !== count($matches[0])
-            || substr_count($pattern, '}') !== count($matches[0])
-        ) {
+        // Any brace left outside a placeholder means the pattern is malformed.
+        $literalParts = '';
+        $cursor = 0;
+        foreach ($matches[0] as [$text, $position]) {
+            $literalParts .= substr($pattern, $cursor, $position - $cursor);
+            $cursor = $position + strlen($text);
+        }
+        $literalParts .= substr($pattern, $cursor);
+        if (str_contains($literalParts, '{') || str_contains($literalParts, '}')) {
             throw new InvalidArgumentException('Malformed route placeholder in "' . $pattern . '".');
         }
 
@@ -182,13 +244,15 @@ final class Route
         $offset = 0;
         $previousEnd = null;
         $names = [];
+        $constraints = [];
 
         foreach ($matches[0] as $index => $token) {
             [$text, $position] = $token;
             $name = $matches[1][$index][0];
+            $constraint = $matches[2][$index][0] ?? '';
 
-            if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) !== 1) {
-                throw new InvalidArgumentException('Invalid route parameter name in "' . $pattern . '".');
+            if (str_contains($text, ':') && $constraint === '') {
+                throw new InvalidArgumentException("Empty constraint for [{$name}].");
             }
 
             if (isset($names[$name])) {
@@ -199,17 +263,51 @@ final class Route
                 throw new InvalidArgumentException('Adjacent route placeholders are ambiguous.');
             }
 
+            if ($constraint !== '') {
+                self::validateConstraint($constraint, $name);
+            }
+
+            $expression = $constraint !== '' ? '(?:' . $constraint . ')' : '[^/]+';
             $regex .= preg_quote(substr($pattern, $offset, $position - $offset), '~');
-            $regex .= '(?P<' . $name . '>[^/]+)';
+            $regex .= '(?P<' . $name . '>' . $expression . ')';
 
             $names[$name] = true;
+            $constraints[$name] = $constraint !== '' ? $constraint : '[^/]+';
             $previousEnd = $position + strlen($text);
             $offset = $previousEnd;
         }
 
         $regex .= preg_quote(substr($pattern, $offset), '~');
         $this->parameterNames = array_keys($names);
+        $this->constraints = $constraints;
 
         return '~^' . $regex . '$~D';
+    }
+
+    private static function validateConstraint(string $constraint, string $name): void
+    {
+        if (str_contains($constraint, '~')) {
+            throw new InvalidArgumentException("Constraint for [{$name}] must not contain '~'.");
+        }
+
+        if (preg_match('/\\\\[0-9]/', $constraint) === 1) {
+            throw new InvalidArgumentException("Backreferences are not allowed in constraint for [{$name}].");
+        }
+
+        if (@preg_match('~^(?:' . $constraint . ')$~D', '') === false) {
+            throw new InvalidArgumentException("Invalid constraint for [{$name}].");
+        }
+
+        if (@preg_match('~^(?:' . $constraint . ')$~D', '') === 1) {
+            throw new InvalidArgumentException("Constraint for [{$name}] must not match an empty string.");
+        }
+
+        // A parameter can never consume a URL separator.
+        if (
+            @preg_match('~^(?:' . $constraint . ')$~D', '/') === 1
+            || @preg_match('~^(?:' . $constraint . ')$~D', 'a/b') === 1
+        ) {
+            throw new InvalidArgumentException("Constraint for [{$name}] must not match '/'.");
+        }
     }
 }

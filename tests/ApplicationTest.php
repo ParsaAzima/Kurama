@@ -247,6 +247,15 @@ final class ApplicationTest extends TestCase
         self::assertSame('u1', $withAttribute->getAttribute('user'));
     }
 
+    public function testApplicationUrlForNamedRoute(): void
+    {
+        $app = AppFactory::create();
+        $app->get('/users/{id:\d+}', static fn () => null)->name('user.show');
+
+        self::assertSame('/users/42', $app->url('user.show', ['id' => 42]));
+        self::assertSame('/users/42', $app->urlFor('user.show', ['id' => 42]));
+    }
+
     public function testRunUsesExplicitMethodAndUri(): void
     {
         $app = new Application();

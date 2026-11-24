@@ -38,6 +38,17 @@ final class RouteCollection implements Countable
         return count($this->routes);
     }
 
+    public function findByName(string $name): ?Route
+    {
+        foreach ($this->routes as $route) {
+            if ($route->getName() === $name) {
+                return $route;
+            }
+        }
+
+        return null;
+    }
+
     public function isEmpty(): bool
     {
         return $this->routes === [];

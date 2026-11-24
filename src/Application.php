@@ -110,6 +110,18 @@ class Application
         return $this->middleware(...$middleware);
     }
 
+    /** Build a URL from a named route. */
+    public function url(string $name, array $params = []): string
+    {
+        return $this->router->url($name, $params);
+    }
+
+    /** Alias for Slim-style `urlFor()`. */
+    public function urlFor(string $name, array $params = []): string
+    {
+        return $this->url($name, $params);
+    }
+
     /** Override default error rendering: fn (Throwable $e, Request $request) => Response|mixed */
     public function setErrorHandler(callable $handler): self
     {

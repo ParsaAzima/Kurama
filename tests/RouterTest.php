@@ -318,6 +318,86 @@ final class RouterTest extends TestCase
         self::assertSame([$groupMiddleware, $routeMiddleware], $route->middlewares());
     }
 
+    public function testNamedRouteUrlGeneration(): void
+    {
+        $router = new Router();
+        $route = $router->get('/users/{id}', static fn (string $id): string => $id)->name('user.show');
+
+        self::assertSame('user.show', $route->getName());
+        self::assertSame('/users/42', $router->url('user.show', ['id' => 42]));
+        self::assertSame('/users/42', $router->urlFor('user.show', ['id' => 42]));
+    }
+
+    public function testUnknownNamedRouteThrows(): void
+    {
+        $router = new Router();
+
+        $this->expectException(InvalidArgumentException::class);
+        $router->url('does.not.exist');
+    }
+
+    public function testUrlGenerationRequiresEveryParameter(): void
+    {
+        $router = new Router();
+        $router->get('/users/{id}', static fn () => null)->name('user.show');
+
+        $this->expectException(InvalidArgumentException::class);
+        $router->url('user.show');
+    }
+
+    public function testConstraintRestrictsMatching(): void
+    {
+        $router = new Router();
+        $router->get('/users/{id:\d+}', static fn (string $id): string => $id);
+
+        self::assertSame('42', $router->dispatch('GET', '/users/42'));
+
+        $this->expectException(RouteNotFoundException::class);
+        $router->dispatch('GET', '/users/abc');
+    }
+
+    public function testMultipleConstrainedParameters(): void
+    {
+        $router = new Router();
+        $router->get(
+            '/posts/{year:\d{4}}/{slug:[a-z-]+}',
+            static fn (string $year, string $slug): string => $year . ':' . $slug,
+        );
+
+        self::assertSame('2026:hello-world', $router->dispatch('GET', '/posts/2026/hello-world'));
+    }
+
+    /** @return iterable<string, array{0: string}> */
+    public static function invalidConstraintCases(): iterable
+    {
+        yield 'empty constraint' => ['/users/{id:}'];
+        yield 'crossing slash' => ['/files/{path:.+}'];
+        yield 'delimiter' => ['/users/{id:~}'];
+        yield 'empty match' => ['/users/{id:\d*}'];
+        yield 'backreference' => ['/users/{id:(a)\1}'];
+        yield 'unbalanced braces' => ['/posts/{year:\d{4}'];
+    }
+
+    #[DataProvider('invalidConstraintCases')]
+    public function testInvalidConstraintsAreRejected(string $pattern): void
+    {
+        $router = new Router();
+
+        $this->expectException(InvalidArgumentException::class);
+        $router->get($pattern, static fn () => null);
+    }
+
+    public function testGeneratedUrlIsCheckedAgainstConstraint(): void
+    {
+        $router = new Router();
+        $router->get('/users/{id:\d+}', static fn () => null)->name('user.show');
+
+        self::assertSame('/users/42', $router->url('user.show', ['id' => 42]));
+
+        $this->expectException(InvalidArgumentException::class);
+        $router->url('user.show', ['id' => 'abc']);
+    }
+
     protected function tearDown(): void
     {
         http_response_code(200);

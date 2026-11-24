@@ -117,6 +117,26 @@ $app->get('/products/{slug}', $handler);
 - Inside an `Application` handler, a parameter can also be requested by name, and `Request` can be injected by type or by a `$request` argument name.
 - `$request->param('id')` exposes matched parameters inside middleware.
 
+Constraints can be added inline:
+
+```php
+$app->get('/users/{id:\d+}', $handler);
+$app->get('/posts/{year:\d{4}}/{slug:[a-z-]+}', $handler);
+```
+
+Constraints are regex fragments. For safety they must not match `/` or the empty string, and they cannot contain backreferences or the regex delimiter `~`. Static segments are still escaped with `preg_quote()`.
+
+## Named routes
+
+```php
+$app->get('/users/{id:\d+}', $handler)->name('user.show');
+
+$app->url('user.show', ['id' => 42]);    // /users/42
+$app->urlFor('user.show', ['id' => 42]); // Slim-style alias
+```
+
+`Router::url()` and `Application::url()` throw `InvalidArgumentException` when the name or a parameter is missing, or when a value does not satisfy its constraint.
+
 ## HTTP request
 
 `Kurama\Request` is immutable. `Request::capture()` builds it from superglobals; `Application::run()` does this automatically.
@@ -243,6 +263,7 @@ use Kurama\Exceptions\MethodNotAllowedException;
 | `group(array $attributes, callable $callback)` | Prefix/middleware group; callback receives the `Application`. |
 | `middleware(callable ...$middleware): self` | Add global middleware. |
 | `setErrorHandler(callable): self` | Override error rendering. |
+| `url()` / `urlFor()` | Build a URL from a named route. |
 | `handle(Request $request): Response` | Dispatch without sending output. |
 | `run(?Request $request = null): void` | Dispatch and send the response. |
 
@@ -253,6 +274,7 @@ use Kurama\Exceptions\MethodNotAllowedException;
 | `get`, `post`, `put`, `patch`, `delete`, `options`, `head`, `any`, `match` | Register routes; returns `Route`. |
 | `group(array $attributes, callable $callback)` | Prefix/middleware group; callback receives the `Router`. |
 | `routes(): RouteCollection` | Inspect registered routes. |
+| `named()` / `url()` / `urlFor()` | Find or build URLs for named routes. |
 | `resolve(string $method, string $uri): ?array` | Find a route without executing it. |
 | `dispatch(string $method, string $uri): mixed` | Execute the handler and return its raw result. |
 | `run(?string $method = null, ?string $uri = null): void` | Thin standalone HTTP entry point. |
@@ -261,8 +283,8 @@ use Kurama\Exceptions\MethodNotAllowedException;
 
 - `AppFactory::create(array $config = []): Application` — Slim-style factory.
 - `Body`: `write(string): self`, `__toString()` — returned by `Response::getBody()`.
-- `Route`: `methods()`, `pattern()`, `handler()`, `parameterNames()`, `middleware(...)` / `add(...)` / `middlewares()`, `supports()`, `matchPath()`.
-- `RouteCollection`: `add()`, `all()`, `get()`, `count()`, `isEmpty()`.
+- `Route`: `methods()`, `pattern()`, `handler()`, `parameterNames()`, `constraints()`, `name()` / `getName()`, `uri()`, `middleware(...)` / `add(...)` / `middlewares()`, `supports()`, `matchPath()`.
+- `RouteCollection`: `add()`, `all()`, `get()`, `count()`, `isEmpty()`, `findByName()`.
 - `RouteMatcher`: `match(RouteCollection, string, string): ?array`.
 - `Request`: see HTTP request section.
 - `Response` / `JsonResponse`: see HTTP response section.
@@ -281,6 +303,6 @@ Not included (see [ROADMAP.md](ROADMAP.md)):
 - Database/ORM, authentication, sessions or cookies.
 - Template engines or view layers.
 - Dependency injection containers, service providers or event buses.
-- Named routes, inline regex constraints and route caching.
+- Route caching and automatic URL generation for unnamed routes.
 - Full CLI kernel or automatic OPTIONS responses.
 - PSR-7 / PSR-15 interoperability (the style is inspired by Slim, not compatible with its contracts).

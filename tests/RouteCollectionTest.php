@@ -36,6 +36,19 @@ final class RouteCollectionTest extends TestCase
         self::assertNull($collection->get(2));
     }
 
+    public function testFindByName(): void
+    {
+        $named = new Route(['GET'], '/users/{id}', static fn () => null);
+        $named->name('user.show');
+
+        $collection = new RouteCollection();
+        $collection->add(new Route(['GET'], '/', static fn () => null));
+        $collection->add($named);
+
+        self::assertSame($named, $collection->findByName('user.show'));
+        self::assertNull($collection->findByName('missing'));
+    }
+
     public function testReturnedArrayCannotMutateTheCollection(): void
     {
         $route = new Route(['GET'], '/users', static fn () => null);
