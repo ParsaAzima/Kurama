@@ -7,7 +7,7 @@ Kurama is a lightweight PHP micro framework inspired by Flask's developer experi
 
 There is no DI container, no service provider system and no runtime dependency.
 
-See [ROADMAP.md](ROADMAP.md) for planned versions and design boundaries.
+Full documentation is in [docs/](docs/README.md). See [ROADMAP.md](ROADMAP.md) for planned versions and design boundaries.
 
 ## Requirements
 
