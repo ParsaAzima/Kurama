@@ -1,14 +1,35 @@
-# Kurama
+ <p align="center">
+  <img src="https://github.com/user-attachments/assets/525b3e78-06c7-43ec-8538-999e6c36904b" alt="Kurama Logo" width="420">
+</p>
+
+<h1 align="center">Kurama</h1>
+
+<p align="center">
+  A lightweight PHP micro framework inspired by Flask's developer experience.
+</p>
+
+<p align="center">
+  <a href="#installation">Installation</a> ·
+  <a href="docs/README.md">Documentation</a> ·
+  <a href="ROADMAP.md">Roadmap</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=flat-square&logo=php&logoColor=white" alt="PHP 8.3+">
+  <img src="https://img.shields.io/badge/Composer-Supported-885630?style=flat-square&logo=composer&logoColor=white" alt="Composer">
+  <img src="https://img.shields.io/badge/License-MIT-white?style=flat-square" alt="MIT License">
+</p>
+
+---
 
 Kurama is a lightweight PHP micro framework inspired by Flask's developer experience. It is built in layers:
 
-- `Router` — standalone, side-effect-free routing core (native PHP/PCRE, zero dependencies).
-- `Application` — optional thin layer adding HTTP requests/responses, route groups, middleware and error rendering.
+- **Router** — standalone, side-effect-free routing core (native PHP/PCRE, zero dependencies).
+- **Application** — optional thin layer adding HTTP requests/responses, route groups, middleware and error rendering.
 
 There is no DI container, no service provider system and no runtime dependency.
 
 Full documentation is in [docs/](docs/README.md). See [ROADMAP.md](ROADMAP.md) for planned versions and design boundaries.
-
 ## Requirements
 
 - PHP 8.3 or newer
