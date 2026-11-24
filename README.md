@@ -38,7 +38,7 @@ Full documentation is in [docs/](docs/README.md). See [ROADMAP.md](ROADMAP.md) f
 ## Installation
 
 ```bash
-composer require kurama/framework
+composer require kurama/framework:@dev
 ```
 
 For local development of this repository:
