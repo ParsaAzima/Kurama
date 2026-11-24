@@ -32,6 +32,8 @@ final class Route
 
     private readonly string $regex;
 
+    private readonly bool $hasParameters;
+
     private ?string $routeName = null;
 
     /** @var list<callable> */
@@ -45,9 +47,7 @@ final class Route
     {
         $this->methods = self::normalizeMethods($methods);
 
-        if (!is_callable($handler)) {
-            throw new InvalidArgumentException('Route handler must be a callable.');
-        }
+        self::validateHandler($handler);
 
         $this->handler = $handler;
         $this->pattern = self::normalizePattern($pattern);
@@ -140,6 +140,11 @@ final class Route
      */
     public function matchPath(string $path): ?array
     {
+        // Static routes are the common case: no regex needed.
+        if (!$this->hasParameters) {
+            return $this->pattern === $path ? [] : null;
+        }
+
         if (preg_match($this->regex, $path, $matches) !== 1) {
             return null;
         }
@@ -179,6 +184,33 @@ final class Route
             },
             $this->pattern,
         );
+    }
+
+    /** Accept callables, [Controller::class, 'method'] and 'Controller@method'. */
+    private static function validateHandler(mixed $handler): void
+    {
+        if (is_callable($handler)) {
+            return;
+        }
+
+        if (is_string($handler) && str_contains($handler, '@')) {
+            [$class, $method] = explode('@', $handler, 2);
+            if (class_exists($class) && method_exists($class, $method)) {
+                return;
+            }
+        }
+
+        if (
+            is_array($handler)
+            && isset($handler[0], $handler[1])
+            && is_string($handler[0])
+            && class_exists($handler[0])
+            && method_exists($handler[0], $handler[1])
+        ) {
+            return;
+        }
+
+        throw new InvalidArgumentException('Route handler must be a callable.');
     }
 
     /**
@@ -280,6 +312,7 @@ final class Route
         $regex .= preg_quote(substr($pattern, $offset), '~');
         $this->parameterNames = array_keys($names);
         $this->constraints = $constraints;
+        $this->hasParameters = $names !== [];
 
         return '~^' . $regex . '$~D';
     }

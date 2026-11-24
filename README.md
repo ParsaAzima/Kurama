@@ -196,6 +196,31 @@ $app->get('/admin', $handler)->middleware($adminMiddleware);
 
 Middleware order is: global → group → route.
 
+## Controllers
+
+Extend `Kurama\Controller` to group related actions. Kurama resolves controller handlers without a container and injects the current request/response context.
+
+```php
+use Kurama\Controller;
+use Kurama\Response;
+
+final class UserController extends Controller
+{
+    public function show(string $id): Response
+    {
+        return $this->json([
+            'id' => $this->param('id'),
+            'method' => $this->request()->method(),
+        ]);
+    }
+}
+
+$app->get('/users/{id}', [UserController::class, 'show']);
+$app->get('/legacy', UserController::class . '@showLegacy');
+```
+
+Inside a controller you get `request()`, `response()`, `param()`, `json()`, `text()`, `html()` and `redirect()`. Controllers must have a no-argument constructor; otherwise pass an already-created instance as the handler. The Slim-style `($request, $response, $args)` signature also works on controller methods.
+
 ## Basic middleware
 
 Middleware is any callable with the signature `fn (Request $request, callable $next): Response`.
@@ -282,12 +307,21 @@ use Kurama\Exceptions\MethodNotAllowedException;
 ### Other classes
 
 - `AppFactory::create(array $config = []): Application` — Slim-style factory.
+- `Controller`: `setContext()`, `request()`, `response()`, `param()`, `json()`, `text()`, `html()`, `redirect()`.
 - `Body`: `write(string): self`, `__toString()` — returned by `Response::getBody()`.
 - `Route`: `methods()`, `pattern()`, `handler()`, `parameterNames()`, `constraints()`, `name()` / `getName()`, `uri()`, `middleware(...)` / `add(...)` / `middlewares()`, `supports()`, `matchPath()`.
 - `RouteCollection`: `add()`, `all()`, `get()`, `count()`, `isEmpty()`, `findByName()`.
 - `RouteMatcher`: `match(RouteCollection, string, string): ?array`.
 - `Request`: see HTTP request section.
 - `Response` / `JsonResponse`: see HTTP response section.
+
+## Performance notes
+
+- Route regexes are compiled once, at registration time.
+- Static routes are compared as plain strings; no regex runs for them.
+- Reflection metadata for named handlers and controller methods is cached per `Application` instance.
+- There is no container, event bus or provider boot phase in the request path.
+- `examples/benchmark.php` runs a small static/dynamic dispatch loop so you can measure throughput on your machine.
 
 ## Running tests
 

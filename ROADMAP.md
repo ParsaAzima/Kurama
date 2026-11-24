@@ -19,7 +19,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.1.0` | Router core + standalone `run()` | Released |
 | `v0.2.0` | Application layer, HTTP, groups, middleware, errors | Released |
 | `v0.3.0` | Named routes and constraints | Released |
-| `v0.4.0` | Developer tooling (dev-only) | Next |
+| `v0.4.0` | Controllers and fast paths | Released |
+| `v0.5.0` | Developer tooling (dev-only) | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -58,12 +59,19 @@ Milestones are feature-driven, not date-driven. A version ships when its accepta
 
 Explicitly out of scope: global helper functions, DI containers, templates.
 
-## v0.4.0 — Developer tooling (next)
+## v0.4.0 — Controllers and fast paths (released)
+
+- `Kurama\Controller` base class with request/response context and `json()`, `text()`, `html()`, `redirect()`, `param()` helpers.
+- Controller handlers supported as `[Controller::class, 'method']` and `Controller@method`, without a container.
+- Reflection metadata cached per `Application` instance for named handlers and controller methods.
+- Static routes matched with plain string comparison instead of regex; regexes compiled once at registration.
+- Small benchmark script comparing static vs dynamic matching.
+
+## v0.5.0 — Developer tooling (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 
 - CI checks: `php -l`, PHPUnit and a PSR-12 style check.
-- Small benchmark script comparing static vs dynamic matching.
 - `Allow` header includes implicit `HEAD` whenever `GET` is allowed.
 - `route:list` dev command that prints registered methods, patterns and middleware.
 - Migration guide from v0.1 to v0.3+.

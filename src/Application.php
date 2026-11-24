@@ -7,6 +7,7 @@ namespace Kurama;
 use InvalidArgumentException;
 use Kurama\Exceptions\MethodNotAllowedException;
 use Kurama\Exceptions\RouteNotFoundException;
+use ReflectionClass;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -27,6 +28,9 @@ class Application
 
     /** @var null|callable */
     private $errorHandler = null;
+
+    /** @var array<string, ReflectionFunction|ReflectionMethod> */
+    private array $reflectionCache = [];
 
     public function __construct(
         private readonly array $config = [],
@@ -145,7 +149,12 @@ class Application
 
             $initialResponse = Response::html('');
             $action = function (Request $request) use ($route, $parameters, $initialResponse): mixed {
-                $output = $this->invoke($route->handler(), $parameters, $request, $initialResponse);
+                $handler = $this->resolveHandler($route->handler());
+                if (is_array($handler) && $handler[0] instanceof Controller) {
+                    $handler[0]->setContext($request, $initialResponse);
+                }
+
+                $output = $this->invoke($handler, $parameters, $request, $initialResponse);
 
                 return $output instanceof Response ? $output : Response::make($output);
             };
@@ -170,16 +179,67 @@ class Application
         $this->handle($request ?? Request::capture())->send();
     }
 
+    /** Resolve class-string and Class@method handlers without a container. */
+    private function resolveHandler(mixed $handler): callable
+    {
+        if (is_callable($handler)) {
+            return $handler;
+        }
+
+        if (is_string($handler) && str_contains($handler, '@')) {
+            $handler = explode('@', $handler, 2);
+        }
+
+        if (
+            is_array($handler)
+            && isset($handler[0], $handler[1])
+            && is_string($handler[0])
+            && class_exists($handler[0])
+        ) {
+            $reflection = new ReflectionClass($handler[0]);
+            $constructor = $reflection->getConstructor();
+            if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
+                throw new InvalidArgumentException("{$handler[0]} needs constructor arguments; pass an instance instead.");
+            }
+            $handler = [$reflection->newInstance(), $handler[1]];
+        }
+
+        return is_callable($handler)
+            ? $handler
+            : throw new InvalidArgumentException('Invalid route handler.');
+    }
+
+    /** Cache reflection for named handlers; closures stay uncached. */
+    private function reflectionFor(callable $handler): ReflectionFunction|ReflectionMethod
+    {
+        if ($handler instanceof \Closure) {
+            return new ReflectionFunction($handler);
+        }
+
+        if (is_string($handler)) {
+            return $this->reflectionCache['fn:' . $handler]
+                ??= new ReflectionFunction($handler);
+        }
+
+        if (is_array($handler)) {
+            $class = is_object($handler[0]) ? get_class($handler[0]) : (string) $handler[0];
+            $key = 'method:' . $class . '::' . $handler[1];
+
+            return $this->reflectionCache[$key]
+                ??= new ReflectionMethod($handler[0], $handler[1]);
+        }
+
+        $key = 'invoke:' . get_class($handler);
+
+        return $this->reflectionCache[$key] ??= new ReflectionMethod($handler, '__invoke');
+    }
+
     /**
      * Inject Slim-style arguments: Request, Response, $args and route params by name.
      */
     private function invoke(callable $handler, array $parameters, Request $request, Response $response): mixed
     {
-        $reflection = match (true) {
-            $handler instanceof \Closure, is_string($handler) => new ReflectionFunction($handler),
-            is_array($handler) => new ReflectionMethod($handler[0], $handler[1]),
-            default => new ReflectionMethod($handler, '__invoke'),
-        };
+        $reflection = $this->reflectionFor($handler);
 
         $arguments = [];
         foreach ($reflection->getParameters() as $parameter) {
