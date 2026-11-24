@@ -20,11 +20,18 @@ abstract class Controller
 
     private ?Template $template = null;
 
-    public function setContext(Request $request, Response $response, ?Template $template = null): void
-    {
+    private ?Container $container = null;
+
+    public function setContext(
+        Request $request,
+        Response $response,
+        ?Template $template = null,
+        ?Container $container = null,
+    ): void {
         $this->request = $request;
         $this->response = $response;
         $this->template = $template;
+        $this->container = $container;
     }
 
     protected function request(): Request
@@ -63,13 +70,28 @@ abstract class Controller
     }
 
     /** Render a template into an HTML response. */
-    protected function view(string $template, array $data = [], int $status = 200): Response
+    protected function view(
+        string $template,
+        array $data = [],
+        int $status = 200,
+        ?string $layout = null,
+    ): Response {
+        return Response::html($this->template()->render($template, $data, $layout), $status);
+    }
+
+    /** Resolve a service from the application container. */
+    protected function make(string $abstract, array $parameters = []): mixed
     {
-        return Response::html($this->template()->render($template, $data), $status);
+        return $this->container()->make($abstract, $parameters);
     }
 
     protected function template(): Template
     {
         return $this->template ?? throw new LogicException('Controller has no template engine.');
+    }
+
+    protected function container(): Container
+    {
+        return $this->container ?? throw new LogicException('Controller has no container.');
     }
 }

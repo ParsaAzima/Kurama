@@ -6,7 +6,7 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 
 1. The router core stays dependency-free and framework-agnostic.
 2. `dispatch()` always returns a handler result; it never sends HTTP output.
-3. No global mutable state, no service locator, no hidden singletons.
+3. No global mutable state or hidden singletons; the container is explicit and opt-in.
 4. Every feature ships with PHPUnit tests and README documentation in the same release.
 5. New layers are opt-in: using `Router` alone keeps working exactly as before.
 6. Semantic versioning after v1.0.0; before that, minor releases may refine the API with migration notes.
@@ -21,7 +21,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.3.0` | Named routes and constraints | Released |
 | `v0.4.0` | Controllers and fast paths | Released |
 | `v0.5.0` | Native PHP template engine | Released |
-| `v0.6.0` | Developer tooling (dev-only) | Next |
+| `v0.6.0` | Phase 3 application features | Released |
+| `v0.7.0` | Developer tooling (dev-only) | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -75,7 +76,16 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - Configurable `views.path` with a `<project root>/views` default.
 - Example templates in `views/` and full documentation in `docs/templates.md`.
 
-## v0.6.0 — Developer tooling (next)
+## v0.6.0 — Phase 3 application features (released)
+
+- `Kurama\Config` with dot notation and `config/app.php` loading.
+- `Kurama\Environment` with `.env` parsing, quoting rules and non-overwriting defaults.
+- `Kurama\Container` with bindings, singletons, factories, auto-wiring, `call()` and circular-dependency detection.
+- Controller constructor injection and `Controller::make()` helper.
+- Template layouts and shared data via `Template::render(..., $layout)` and `share()`.
+- Documentation for configuration, environment and DI.
+
+## v0.7.0 — Developer tooling (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 

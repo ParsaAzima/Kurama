@@ -1,6 +1,6 @@
 # Kurama documentation
 
-Kurama has two layers: a standalone, side-effect-free `Router` core and an optional `Application` layer that adds HTTP requests, responses, middleware, controllers and error rendering.
+Kurama has two layers: a standalone, side-effect-free `Router` core and an optional `Application` layer that adds dependency injection, configuration, environment variables, HTTP requests/responses, middleware, controllers, templates and error rendering.
 
 Start here:
 
@@ -12,6 +12,9 @@ Start here:
 | Middleware pipeline | [middleware.md](middleware.md) |
 | Controllers | [controllers.md](controllers.md) |
 | Native PHP templates | [templates.md](templates.md) |
+| Dependency injection | [dependency-injection.md](dependency-injection.md) |
+| Configuration | [configuration.md](configuration.md) |
+| Environment variables | [environment.md](environment.md) |
 | Request object | [request.md](request.md) |
 | Response and JSON response | [response.md](response.md) |
 | Exceptions and error rendering | [errors.md](errors.md) |

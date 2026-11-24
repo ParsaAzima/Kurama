@@ -7,17 +7,13 @@ namespace Kurama;
 use InvalidArgumentException;
 use Kurama\Exceptions\MethodNotAllowedException;
 use Kurama\Exceptions\RouteNotFoundException;
-use ReflectionClass;
-use ReflectionFunction;
-use ReflectionMethod;
-use ReflectionNamedType;
 use Throwable;
 
 /**
  * Optional application layer on top of the router.
  *
- * It owns the middleware pipeline, request/response conversion and error
- * rendering. The Router itself stays independent and side-effect free.
+ * It owns the container, configuration, environment, middleware pipeline,
+ * request/response conversion and error rendering. The Router stays independent.
  */
 class Application
 {
@@ -25,29 +21,48 @@ class Application
 
     public readonly Template $template;
 
+    public readonly Config $configuration;
+
+    public readonly Environment $environment;
+
+    public readonly Container $container;
+
     /** @var list<callable> */
     private array $middleware = [];
 
     /** @var null|callable */
     private $errorHandler = null;
 
-    /** @var array<string, ReflectionFunction|ReflectionMethod> */
-    private array $reflectionCache = [];
-
     public function __construct(
-        private readonly array $config = [],
+        array|Config $config = [],
         ?Router $router = null,
         ?string $basePath = null,
+        ?Container $container = null,
     ) {
         $this->router = $router ?? new Router();
-
+        $this->container = $container ?? new Container();
         $base = $basePath ?? dirname(__DIR__);
-        $viewsPath = $config['views.path'] ?? $base . '/views';
+
+        $configFile = $base . '/config/app.php';
+        $fileConfig = is_file($configFile) ? require $configFile : [];
+
+        $this->configuration = new Config(is_array($fileConfig) ? $fileConfig : []);
+        $this->configuration->load($config instanceof Config ? $config->all() : $config);
+
+        $viewsPath = $this->configuration->get('views.path', $base . '/views');
         $this->template = new Template((string) $viewsPath);
 
-        if (isset($config['timezone']) && is_string($config['timezone'])) {
-            date_default_timezone_set($config['timezone']);
+        $this->environment = new Environment();
+        $envPath = (string) $this->configuration->get('env.path', $base . '/.env');
+        if ($this->configuration->get('env.enabled', true) && is_file($envPath)) {
+            $this->environment->load($envPath);
         }
+
+        if (($timezone = $this->configuration->get('timezone')) !== null) {
+            date_default_timezone_set((string) $timezone);
+        }
+
+        $this->registerCoreBindings();
     }
 
     public function get(string $pattern, mixed $handler): Route
@@ -97,8 +112,6 @@ class Application
     }
 
     /**
-     * Group routes under a prefix and/or with shared middleware.
-     *
      * @param array{prefix?: string, middleware?: list<callable>} $attributes
      */
     public function group(array $attributes, callable $callback): void
@@ -121,25 +134,37 @@ class Application
         return $this->middleware(...$middleware);
     }
 
-    /** Build a URL from a named route. */
+    public function config(string $key, mixed $default = null): mixed
+    {
+        return $this->configuration->get($key, $default);
+    }
+
+    public function env(string $key, mixed $default = null): mixed
+    {
+        return $this->environment->get($key, $default);
+    }
+
     public function url(string $name, array $params = []): string
     {
         return $this->router->url($name, $params);
     }
 
-    /** Alias for Slim-style `urlFor()`. */
     public function urlFor(string $name, array $params = []): string
     {
         return $this->url($name, $params);
     }
 
     /** Render a template into an HTML response. */
-    public function render(string $template, array $data = [], int $status = 200): Response
-    {
-        return Response::html($this->template->render($template, $data), $status);
+    public function render(
+        string $template,
+        array $data = [],
+        int $status = 200,
+        ?string $layout = null,
+    ): Response {
+        return Response::html($this->template->render($template, $data, $layout), $status);
     }
 
-    /** Override default error rendering: fn (Throwable $e, Request $request) => Response|mixed */
+    /** Override default error rendering. */
     public function setErrorHandler(callable $handler): self
     {
         $this->errorHandler = $handler;
@@ -161,13 +186,22 @@ class Application
             $request = $request->withParams($parameters);
 
             $initialResponse = Response::html('');
+            $this->container->instance(Request::class, $request);
+            $this->container->instance('request', $request);
+            $this->container->instance(Response::class, $initialResponse);
+            $this->container->instance('response', $initialResponse);
+
             $action = function (Request $request) use ($route, $parameters, $initialResponse): mixed {
                 $handler = $this->resolveHandler($route->handler());
                 if (is_array($handler) && $handler[0] instanceof Controller) {
-                    $handler[0]->setContext($request, $initialResponse, $this->template);
+                    $handler[0]->setContext($request, $initialResponse, $this->template, $this->container);
                 }
 
-                $output = $this->invoke($handler, $parameters, $request, $initialResponse);
+                $output = $this->container->call($handler, array_merge($parameters, [
+                    'request' => $request,
+                    'response' => $initialResponse,
+                    'args' => $parameters,
+                ]));
 
                 return $output instanceof Response ? $output : Response::make($output);
             };
@@ -192,7 +226,23 @@ class Application
         $this->handle($request ?? Request::capture())->send();
     }
 
-    /** Resolve class-string and Class@method handlers without a container. */
+    private function registerCoreBindings(): void
+    {
+        $this->container->instance(Container::class, $this->container);
+        $this->container->instance('container', $this->container);
+        $this->container->instance(self::class, $this);
+        $this->container->instance('app', $this);
+        $this->container->instance(Router::class, $this->router);
+        $this->container->instance('router', $this->router);
+        $this->container->instance(Template::class, $this->template);
+        $this->container->instance('template', $this->template);
+        $this->container->instance(Config::class, $this->configuration);
+        $this->container->instance('config', $this->configuration);
+        $this->container->instance(Environment::class, $this->environment);
+        $this->container->instance('env', $this->environment);
+    }
+
+    /** Resolve class-string and Class@method handlers through the container. */
     private function resolveHandler(mixed $handler): callable
     {
         if (is_callable($handler)) {
@@ -209,72 +259,12 @@ class Application
             && is_string($handler[0])
             && class_exists($handler[0])
         ) {
-            $reflection = new ReflectionClass($handler[0]);
-            $constructor = $reflection->getConstructor();
-            if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
-                throw new InvalidArgumentException("{$handler[0]} needs constructor arguments; pass an instance instead.");
-            }
-            $handler = [$reflection->newInstance(), $handler[1]];
+            $handler = [$this->container->make($handler[0]), $handler[1]];
         }
 
         return is_callable($handler)
             ? $handler
             : throw new InvalidArgumentException('Invalid route handler.');
-    }
-
-    /** Cache reflection for named handlers; closures stay uncached. */
-    private function reflectionFor(callable $handler): ReflectionFunction|ReflectionMethod
-    {
-        if ($handler instanceof \Closure) {
-            return new ReflectionFunction($handler);
-        }
-
-        if (is_string($handler)) {
-            return $this->reflectionCache['fn:' . $handler]
-                ??= new ReflectionFunction($handler);
-        }
-
-        if (is_array($handler)) {
-            $class = is_object($handler[0]) ? get_class($handler[0]) : (string) $handler[0];
-            $key = 'method:' . $class . '::' . $handler[1];
-
-            return $this->reflectionCache[$key]
-                ??= new ReflectionMethod($handler[0], $handler[1]);
-        }
-
-        $key = 'invoke:' . get_class($handler);
-
-        return $this->reflectionCache[$key] ??= new ReflectionMethod($handler, '__invoke');
-    }
-
-    /**
-     * Inject Slim-style arguments: Request, Response, $args and route params by name.
-     */
-    private function invoke(callable $handler, array $parameters, Request $request, Response $response): mixed
-    {
-        $reflection = $this->reflectionFor($handler);
-
-        $arguments = [];
-        foreach ($reflection->getParameters() as $parameter) {
-            $name = $parameter->getName();
-            $type = $parameter->getType();
-
-            if ($name === 'request' || ($type instanceof ReflectionNamedType && $type->getName() === Request::class)) {
-                $arguments[] = $request;
-            } elseif ($name === 'response' || ($type instanceof ReflectionNamedType && $type->getName() === Response::class)) {
-                $arguments[] = $response;
-            } elseif ($name === 'args') {
-                $arguments[] = $parameters;
-            } elseif (array_key_exists($name, $parameters)) {
-                $arguments[] = $parameters[$name];
-            } elseif ($parameter->isDefaultValueAvailable()) {
-                $arguments[] = $parameter->getDefaultValue();
-            } else {
-                throw new InvalidArgumentException("Cannot resolve argument \${$name}.");
-            }
-        }
-
-        return $handler(...$arguments);
     }
 
     private function renderError(Throwable $exception, Request $request): Response
@@ -285,6 +275,7 @@ class Application
             return $result instanceof Response ? $result : Response::make($result);
         }
 
+        $debug = (bool) $this->configuration->get('debug', false);
         $status = 500;
         $headers = [];
 
@@ -293,7 +284,7 @@ class Application
         } elseif ($exception instanceof MethodNotAllowedException) {
             $status = 405;
             $headers['Allow'] = implode(', ', $exception->allowedMethods());
-        } elseif (!($this->config['debug'] ?? false)) {
+        } elseif (!$debug) {
             error_log(sprintf(
                 '[Kurama] %s: %s in %s:%d',
                 get_class($exception),
@@ -303,10 +294,7 @@ class Application
             ));
         }
 
-        $message = $this->config['debug'] ?? false
-            ? $exception->getMessage()
-            : $this->statusText($status);
-
+        $message = $debug ? $exception->getMessage() : $this->statusText($status);
         $payload = ['error' => ['status' => $status, 'message' => $message]];
 
         if ($request->wantsJson() || str_starts_with($request->path(), '/api')) {

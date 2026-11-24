@@ -6,8 +6,10 @@ namespace Kurama\Tests;
 
 use Kurama\AppFactory;
 use Kurama\Application;
+use Kurama\Config;
 use Kurama\JsonResponse;
 use Kurama\Request;
+use Kurama\Template;
 use Kurama\Response;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -267,6 +269,42 @@ final class ApplicationTest extends TestCase
         self::assertSame('Hello Kurama', trim($response->getContent()));
     }
 
+    public function testCoreServicesAreBoundInContainer(): void
+    {
+        $app = AppFactory::create();
+
+        self::assertSame($app->router, $app->container->get('router'));
+        self::assertSame($app->template, $app->container->get(Template::class));
+        self::assertSame($app->configuration, $app->container->get('config'));
+        self::assertSame($app->environment, $app->container->get('env'));
+        self::assertSame($app, $app->container->get('app'));
+    }
+
+    public function testDottedConfigAndEnvironmentHelpers(): void
+    {
+        $app = new Application([
+            'app.name' => 'Custom',
+            'env.path' => __DIR__ . '/fixtures/.env.test',
+        ]);
+
+        self::assertSame('Custom', $app->config('app.name'));
+        self::assertSame('from-env', $app->env('KURAMA_FIXTURE'));
+        self::assertSame('hello world', $app->env('KURAMA_FIXTURE_QUOTED'));
+        self::assertInstanceOf(Config::class, $app->configuration);
+    }
+
+    public function testContainerServiceCanBeInjectedIntoHandler(): void
+    {
+        $app = AppFactory::create();
+        $app->container->instance(GreetingHelper::class, new GreetingHelper());
+
+        $app->get('/service/{name}', function (string $name, GreetingHelper $greeting): Response {
+            return Response::text($greeting->hello($name));
+        });
+
+        self::assertSame('Hi parsa', $app->handle(new Request('GET', '/service/parsa'))->getContent());
+    }
+
     public function testRunUsesExplicitMethodAndUri(): void
     {
         $app = new Application();
@@ -278,5 +316,13 @@ final class ApplicationTest extends TestCase
 
         self::assertSame('ran', $output);
         self::assertSame(200, http_response_code());
+    }
+}
+
+final class GreetingHelper
+{
+    public function hello(string $name): string
+    {
+        return 'Hi ' . $name;
     }
 }

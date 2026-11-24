@@ -59,4 +59,21 @@ final class TemplateTest extends TestCase
     {
         self::assertSame('&lt;x&gt;', $this->template()->e('<x>'));
     }
+
+    public function testLayoutWrapsRenderedContent(): void
+    {
+        $output = $this->template()->render('hello', ['name' => 'Kurama'], 'layouts.main');
+
+        self::assertSame('<main>Hello Kurama</main>', trim($output));
+    }
+
+    public function testSharedDataCanBeOverridden(): void
+    {
+        $template = $this->template();
+        $template->share('name', 'Shared');
+
+        self::assertSame('Hello Shared', trim($template->render('hello')));
+        self::assertSame('Hello Own', trim($template->render('hello', ['name' => 'Own'])));
+        self::assertSame(['name' => 'Shared'], $template->shared());
+    }
 }

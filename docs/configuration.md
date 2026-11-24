@@ -1,0 +1,66 @@
+# Configuration
+
+Configuration is a simple dot-notation repository. There is no config caching step.
+
+## Config file
+
+`Application` loads `<project root>/config/app.php` automatically when it exists:
+
+```php
+<?php
+
+return [
+    'app' => ['name' => 'Kurama'],
+    'debug' => true,
+    'timezone' => 'UTC',
+    'env.enabled' => true,
+    'views.path' => dirname(__DIR__) . '/views',
+];
+```
+
+Values passed to the constructor override file values:
+
+```php
+$app = AppFactory::create(['debug' => false]);
+$app = AppFactory::create(new Kurama\Config(['app' => ['name' => 'Custom']]));
+```
+
+## Reading and writing
+
+```php
+$app->config('app.name');             // Kurama
+$app->config('app.missing', 'fallback');
+$app->configuration->set('views.path', '/tmp/views');
+```
+
+The underlying `Kurama\Config` object:
+
+```php
+$config = $app->configuration;
+$config->get('app.name');
+$config->set('app.name', 'Custom');
+$config->has('app.name');
+$config->load(['debug' => false]);
+$config->all();
+```
+
+Dotted keys passed to `load()` are normalized into nested arrays, so `['views.path' => '/views']` is readable as `get('views.path')`.
+
+## Recognized keys
+
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `debug` | Include exception details in error responses. | `false` |
+| `timezone` | Passed to `date_default_timezone_set()`. | PHP default |
+| `views.path` | Template directory. | `<project root>/views` |
+| `env.path` | `.env` file location. | `<project root>/.env` |
+| `env.enabled` | Whether to auto-load `.env`. | `true` |
+
+Other keys are stored untouched and can be used by your own code via `$app->config(...)` or by injecting `Kurama\Config`.
+
+## Container access
+
+```php
+$config = $app->container->get('config');
+$config = $app->container->get(Kurama\Config::class);
+```

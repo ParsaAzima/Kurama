@@ -6,13 +6,13 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 
 | Method | Description |
 | --- | --- |
-| `static create(array $config = [], ?string $basePath = null): Application` | Create an application. Config keys: `debug`, `timezone`, `views.path`. |
+| `static create(array\|Config $config = [], ?string $basePath = null, ?Container $container = null): Application` | Create an application. Keys: `debug`, `timezone`, `views.path`, `env.path`, `env.enabled`. |
 
 ## Application
 
 | Method | Description |
 | --- | --- |
-| `__construct(array $config = [], ?Router $router = null, ?string $basePath = null)` | Create with config, optional router and project root. |
+| `__construct(array\|Config $config = [], ?Router $router = null, ?string $basePath = null, ?Container $container = null)` | Create with config, router, project root and container. |
 | `get/post/put/patch/delete/options/head/any(string $pattern, mixed $handler): Route` | Register a route. |
 | `match(array\|string $methods, string $pattern, mixed $handler): Route` | Register for one or more methods. |
 | `group(array $attributes, callable $callback): void` | Prefix/middleware group; callback receives `Application`. |
@@ -20,12 +20,16 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `add(callable ...$middleware): self` | Alias of `middleware()`. |
 | `url(string $name, array $params = []): string` | Build URL from a named route. |
 | `urlFor(string $name, array $params = []): string` | Alias of `url()`. |
-| `render(string $template, array $data = [], int $status = 200): Response` | Render a template into an HTML response. |
+| `config(string $key, mixed $default = null)` / `env(...)` | Read configuration / environment values. |
+| `render(string $template, array $data = [], int $status = 200, ?string $layout = null): Response` | Render a template into an HTML response. |
 | `setErrorHandler(callable $handler): self` | Set custom error renderer. |
 | `handle(Request $request): Response` | Dispatch without sending output. |
 | `run(?Request $request = null): void` | Dispatch and send response. |
 | `router` (public readonly `Router`) | Underlying router. |
 | `template` (public readonly `Template`) | Template engine instance. |
+| `configuration` (public readonly `Config`) | Configuration repository. |
+| `environment` (public readonly `Environment`) | Environment variables. |
+| `container` (public readonly `Container`) | DI container. |
 
 ## Router
 
@@ -101,6 +105,33 @@ See [response.md](response.md) for details.
 | `__construct(string $content = '')` | Create with initial content. |
 | `write(string $data): self` | Append data. |
 | `__toString(): string` | Current content. |
+
+## Container
+
+See [dependency-injection.md](dependency-injection.md) for details.
+
+| Method | Description |
+| --- | --- |
+| `instance(string $id, mixed $value): void` | Register an existing value. |
+| `bind(string $id, Closure\|string\|null $concrete = null, bool $singleton = false): void` | Register a factory/class binding. |
+| `singleton(string $id, Closure\|string\|null $concrete = null): void` | Shared binding. |
+| `factory(string $id, Closure $factory): void` | Non-shared factory binding. |
+| `has(string $id): bool` | Check availability. |
+| `get(string $id): mixed` | Resolve or throw `NotFoundException`. |
+| `make(string $id, array $parameters = []): mixed` | Resolve with constructor overrides. |
+| `call(callable $callback, array $parameters = []): mixed` | Invoke with argument injection. |
+
+## Config
+
+See [configuration.md](configuration.md).
+
+`get()`, `set()`, `has()`, `load()`, `all()`.
+
+## Environment
+
+See [environment.md](environment.md).
+
+`__construct(?string $file = null, bool $overwrite = false)`, `load()`, `get()`, `has()`, `all()`.
 
 ## Template
 

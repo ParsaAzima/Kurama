@@ -40,7 +40,23 @@ $controller = new UserController($repository);
 $app->get('/users/{id}', [$controller, 'show']);
 ```
 
-A controller with required constructor arguments registered by class name produces a 500 error.
+Constructor arguments are now resolved by the container, so controllers can declare services directly:
+
+```php
+final class UserController extends Controller
+{
+    public function __construct(private readonly UserService $users)
+    {
+    }
+
+    public function show(string $id): Response
+    {
+        return $this->json($this->users->find($id));
+    }
+}
+```
+
+Unresolvable scalar arguments still produce a 500 error. Use `$this->make(Service::class)` for on-demand resolution inside an action.
 
 ## Available helpers
 
@@ -52,9 +68,10 @@ A controller with required constructor arguments registered by class name produc
 | `json(mixed $data, int $status = 200, array $headers = [])` | `JsonResponse`. |
 | `text(...)`, `html(...)` | Text/HTML responses. |
 | `redirect(string $url, int $status = 302)` | Redirect response. |
-| `view(string $template, array $data = [], int $status = 200)` | Render a native PHP template into an HTML response. |
+| `view(string $template, array $data = [], int $status = 200, ?string $layout = null)` | Render a native PHP template into an HTML response. |
+| `make(string $abstract, array $parameters = [])` | Resolve a service from the container. |
 
-`setContext(Request, Response, ?Template)` is called by the framework before the action. You normally do not call it yourself. The template instance is what makes `view()` work; see [templates.md](templates.md).
+`setContext(Request, Response, ?Template, ?Container)` is called by the framework before the action. You normally do not call it yourself. The template instance makes `view()` work; the container enables `make()`; see [templates.md](templates.md) and [dependency-injection.md](dependency-injection.md).
 
 ## Handler arguments
 

@@ -70,11 +70,31 @@ Always escape user-provided values. `escape()` uses `htmlspecialchars()` with `E
 
 | Method | Description |
 | --- | --- |
-| `render(string $template, array $data = []): string` | Render to a string. |
+| `render(string $template, array $data = [], ?string $layout = null): string` | Render to a string, optionally wrapping in a layout. |
+| `share(string $key, mixed $value): self` | Add data shared by every render. |
+| `shared(): array` | Shared data. |
 | `path(string $template): string` | Resolve a template name to a file path. |
 | `exists(string $template): bool` | Check whether the template file exists. |
 | `escape(string $value): string` | HTML-escape a value. |
 | `e(string $value): string` | Alias of `escape()`. |
+
+## Layouts and shared data
+
+```php
+// views/layouts/main.php
+<!doctype html><html><body><?= $content ?></body></html>
+
+// Render content, then wrap it:
+echo $this->render('home', $data, 'layouts.main');
+```
+
+The layout receives all template data plus a `content` variable containing the rendered inner template. `Application::render()` and `Controller::view()` accept an optional fourth layout argument.
+
+```php
+$app->template->share('appName', 'Kurama');
+```
+
+Shared data is merged before per-render data, so explicit data wins.
 
 ## Safety and errors
 

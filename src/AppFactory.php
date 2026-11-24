@@ -9,8 +9,11 @@ namespace Kurama;
  */
 final class AppFactory
 {
-    public static function create(array $config = [], ?string $basePath = null): Application
-    {
-        return new Application($config, null, $basePath);
+    public static function create(
+        array|Config $config = [],
+        ?string $basePath = null,
+        ?Container $container = null,
+    ): Application {
+        return new Application($config, null, $basePath, $container);
     }
 }

@@ -247,6 +247,29 @@ Templates are plain PHP files; dot notation maps to subdirectories (`partials.gr
 
 See [docs/templates.md](docs/templates.md) for the full API and safety rules.
 
+## Configuration, environment and DI
+
+```php
+$app = AppFactory::create([
+    'debug' => false,
+    'views.path' => __DIR__ . '/../views',
+    'env.path' => __DIR__ . '/../.env',
+]);
+
+$name = $app->config('app.name', 'Kurama');
+$token = $app->env('API_TOKEN');
+$service = $app->container->make(UserService::class);
+
+$app->container->singleton(Cache::class);
+```
+
+- `Config` uses dot notation and loads `config/app.php`.
+- `Environment` loads `.env` into `$_ENV`, `$_SERVER` and `getenv()` without overwriting existing values.
+- `Container` supports auto-wiring, bindings, singletons and factories — no service providers.
+- Controllers receive constructor dependencies from the container.
+
+See [docs/configuration.md](docs/configuration.md), [docs/environment.md](docs/environment.md) and [docs/dependency-injection.md](docs/dependency-injection.md).
+
 ## Basic middleware
 
 Middleware is any callable with the signature `fn (Request $request, callable $next): Response`.
@@ -332,8 +355,9 @@ use Kurama\Exceptions\MethodNotAllowedException;
 
 ### Other classes
 
-- `AppFactory::create(array $config = []): Application` — Slim-style factory.
-- `Controller`: `setContext()`, `request()`, `response()`, `param()`, `json()`, `text()`, `html()`, `redirect()`.
+- `AppFactory::create(array|Config $config = [], ?string $basePath = null, ?Container $container = null): Application`.
+- `Controller`: `setContext()`, `request()`, `response()`, `param()`, `json()`, `text()`, `html()`, `redirect()`, `view()`, `make()`.
+- `Container`, `Config`, `Environment`, `Template`: see [docs/api-reference.md](docs/api-reference.md).
 - `Body`: `write(string): self`, `__toString()` — returned by `Response::getBody()`.
 - `Route`: `methods()`, `pattern()`, `handler()`, `parameterNames()`, `constraints()`, `name()` / `getName()`, `uri()`, `middleware(...)` / `add(...)` / `middlewares()`, `supports()`, `matchPath()`.
 - `RouteCollection`: `add()`, `all()`, `get()`, `count()`, `isEmpty()`, `findByName()`.
@@ -345,8 +369,8 @@ use Kurama\Exceptions\MethodNotAllowedException;
 
 - Route regexes are compiled once, at registration time.
 - Static routes are compared as plain strings; no regex runs for them.
-- Reflection metadata for named handlers and controller methods is cached per `Application` instance.
-- There is no container, event bus or provider boot phase in the request path.
+- Reflection metadata for named handlers and controller methods is cached per `Container` instance.
+- The container has no provider boot phase or event bus; core services are bound once at construction.
 - `examples/benchmark.php` runs a small static/dynamic dispatch loop so you can measure throughput on your machine.
 
 ## Running tests
@@ -361,8 +385,8 @@ vendor/bin/phpunit
 Not included (see [ROADMAP.md](ROADMAP.md)):
 
 - Database/ORM, authentication, sessions or cookies.
-- Third-party template engines, layout inheritance and template caching (the built-in native-PHP engine is included).
-- Dependency injection containers, service providers or event buses.
+- Third-party template engines and template caching (the built-in native-PHP engine with layouts is included).
+- Service providers, auto-discovery and event buses (a small explicit container is included).
 - Route caching and automatic URL generation for unnamed routes.
 - Full CLI kernel or automatic OPTIONS responses.
 - PSR-7 / PSR-15 interoperability (the style is inspired by Slim, not compatible with its contracts).

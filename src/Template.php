@@ -12,35 +12,44 @@ use Throwable;
  * Minimal native-PHP template engine.
  *
  * Templates are plain PHP files. Inside a template, $this is the Template
- * instance, so partials and escaping are available without global helpers.
+ * instance, so partials, escaping and shared data are available without globals.
  */
 final class Template
 {
+    /** @var array<string, mixed> */
+    private array $shared = [];
+
     public function __construct(
         private readonly string $basePath,
         private readonly string $extension = '.php',
     ) {
     }
 
-    /** @param array<string, mixed> $data */
-    public function render(string $template, array $data = []): string
+    /** Render a template, optionally wrapping it in a layout. */
+    public function render(string $template, array $data = [], ?string $layout = null): string
     {
-        $path = $this->path($template);
+        $content = $this->renderFile($template, $data);
 
-        if (!is_file($path)) {
-            throw new RuntimeException("Template [{$template}] not found at {$path}.");
+        if ($layout === null) {
+            return $content;
         }
 
-        extract($data, EXTR_SKIP);
-        ob_start();
-        try {
-            require $path;
-        } catch (Throwable $exception) {
-            ob_end_clean();
-            throw $exception;
-        }
+        return $this->renderFile($layout, array_merge($data, ['content' => $content]));
+    }
 
-        return (string) ob_get_clean();
+    /**
+     * Data shared by every render. Template data overrides shared values.
+     */
+    public function share(string $key, mixed $value): self
+    {
+        $this->shared[$key] = $value;
+
+        return $this;
+    }
+
+    public function shared(): array
+    {
+        return $this->shared;
     }
 
     public function path(string $name): string
@@ -65,6 +74,27 @@ final class Template
     public function e(string $value): string
     {
         return $this->escape($value);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function renderFile(string $template, array $data): string
+    {
+        $path = $this->path($template);
+
+        if (!is_file($path)) {
+            throw new RuntimeException("Template [{$template}] not found at {$path}.");
+        }
+
+        extract(array_merge($this->shared, $data), EXTR_SKIP);
+        ob_start();
+        try {
+            require $path;
+        } catch (Throwable $exception) {
+            ob_end_clean();
+            throw $exception;
+        }
+
+        return (string) ob_get_clean();
     }
 
     private function assertValidName(string $name): void

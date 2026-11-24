@@ -68,6 +68,16 @@ final class ControllerTest extends TestCase
         self::assertSame('Hello Controller', trim($response->getContent()));
     }
 
+    public function testControllerConstructorDependenciesComeFromContainer(): void
+    {
+        $app = AppFactory::create();
+        $app->get('/injected/{name}', [InjectedController::class, 'hello']);
+
+        $response = $app->handle(new Request('GET', '/injected/parsa'));
+
+        self::assertSame('Hi parsa', $response->getContent());
+    }
+
     public function testControllerWithRequiredConstructorArgumentsIsRejected(): void
     {
         $app = AppFactory::create();
@@ -116,5 +126,25 @@ final class NeedsArgumentsController extends Controller
     public function index(): Response
     {
         return $this->text($this->name);
+    }
+}
+
+final class ControllerGreetingService
+{
+    public function greet(string $name): string
+    {
+        return 'Hi ' . $name;
+    }
+}
+
+final class InjectedController extends Controller
+{
+    public function __construct(private readonly ControllerGreetingService $greeter)
+    {
+    }
+
+    public function hello(string $name): Response
+    {
+        return $this->text($this->greeter->greet($name));
     }
 }

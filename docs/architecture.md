@@ -28,7 +28,10 @@ The core has no knowledge of superglobals, HTTP responses, middleware or control
 | `Kurama\JsonResponse` | JSON-encoded response. |
 | `Kurama\Body` | Tiny writable body used by `Response::getBody()`. |
 | `Kurama\Controller` | Optional base class for grouped actions. |
-| `Kurama\Template` | Minimal native-PHP template engine with escaping and partials. |
+| `Kurama\Template` | Minimal native-PHP template engine with escaping, partials and layouts. |
+| `Kurama\Container` | Small PSR-11-style container with auto-wiring. |
+| `Kurama\Config` | Dot-notation configuration repository. |
+| `Kurama\Environment` | `.env` loader. |
 
 You can use the router without the application layer, and the application layer without adding any container or provider.
 
@@ -47,12 +50,12 @@ You can use the router without the application layer, and the application layer 
 
 ## Design rules
 
-- No service container, service providers or event bus.
+- No service providers or event bus. The container is small, opt-in and has no interface dependency.
 - No static mutable state. `AppFactory::create()` is a stateless factory.
 - No PSR-7 dependency; `Request`, `Response` and `Body` are small local value objects.
 - Opt-in layers: using `Router` alone keeps working.
 - Every feature ships with tests in the same release.
 
-## Why no DI container?
+## Why this container?
 
-Controller dependencies are limited to what the router already knows: route parameters, `Request`, `Response` and `$args`. Anything else should be constructed by your application code or passed as an already-created callable. This keeps the request path small and predictable.
+The container resolves constructor dependencies and handler arguments, but deliberately avoids autoloading conventions, service providers, tags and compiler passes. Bind what you need explicitly or let type-hinted classes auto-wire. This keeps the request path small and predictable.
