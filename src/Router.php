@@ -16,6 +16,14 @@ use Kurama\Exceptions\RouteNotFoundException;
  */
 final class Router
 {
+    private const ALL_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'];
+
+    /** @var array<string, array<string, list<int>>> */
+    private array $staticIndex = [];
+
+    /** @var array<string, list<int>> */
+    private array $dynamicIndex = [];
+
     private string $groupPrefix = '';
 
     /** @var list<callable> */
@@ -93,6 +101,15 @@ final class Router
             $route->middleware(...$this->groupMiddleware);
         }
         $this->routes->add($route);
+
+        $position = count($this->routes) - 1;
+        foreach ($this->indexMethods($route->methods()) as $method) {
+            if ($route->parameterNames() === []) {
+                $this->staticIndex[$method][$route->pattern()][] = $position;
+            } else {
+                $this->dynamicIndex[$method][] = $position;
+            }
+        }
 
         return $route;
     }
@@ -211,7 +228,51 @@ final class Router
             throw new InvalidArgumentException('HTTP method must not be empty.');
         }
 
-        return $this->matcher->match($this->routes, $method, self::normalizePath($uri));
+        $path = self::normalizePath($uri);
+
+        // Fast path: exact static lookup, then only earlier dynamic routes.
+        $staticPositions = $this->staticIndex[$method][$path] ?? [];
+        $dynamicPositions = $this->dynamicIndex[$method] ?? [];
+        $cutoff = $staticPositions === [] ? PHP_INT_MAX : $staticPositions[0];
+
+        foreach ($dynamicPositions as $position) {
+            if ($position >= $cutoff) {
+                break;
+            }
+            $route = $this->routes->get($position);
+            if ($route === null) {
+                continue;
+            }
+            $parameters = $route->matchPath($path);
+            if ($parameters !== null) {
+                return ['route' => $route, 'parameters' => $parameters];
+            }
+        }
+
+        foreach ($staticPositions as $position) {
+            $route = $this->routes->get($position);
+            if ($route !== null) {
+                return ['route' => $route, 'parameters' => []];
+            }
+        }
+
+        // Slow path is only reached when no method-compatible route matched:
+        // collect allowed methods to distinguish 405 from 404.
+        $allowed = [];
+        foreach ($this->routes->all() as $route) {
+            if ($route->matchPath($path) === null) {
+                continue;
+            }
+            foreach ($route->methods() as $routeMethod) {
+                $allowed[$routeMethod] = true;
+            }
+        }
+
+        if ($allowed !== []) {
+            throw new MethodNotAllowedException(array_keys($allowed), $method, $path);
+        }
+
+        return null;
     }
 
     /**
@@ -236,6 +297,20 @@ final class Router
      * Drop query strings and fragments, enforce a leading slash and ignore
      * trailing slashes (except for the root path).
      */
+    /** @param list<string> $methods @return list<string> */
+    private function indexMethods(array $methods): array
+    {
+        if ($methods === ['ANY']) {
+            return self::ALL_METHODS;
+        }
+
+        if (in_array('GET', $methods, true)) {
+            $methods[] = 'HEAD';
+        }
+
+        return array_values(array_unique($methods));
+    }
+
     public static function normalizePath(string $uri): string
     {
         $path = parse_url($uri, PHP_URL_PATH);

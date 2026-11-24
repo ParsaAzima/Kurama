@@ -368,9 +368,11 @@ use Kurama\Exceptions\MethodNotAllowedException;
 ## Performance notes
 
 - Route regexes are compiled once, at registration time.
-- Static routes are compared as plain strings; no regex runs for them.
-- Reflection metadata for named handlers and controller methods is cached per `Container` instance.
-- The container has no provider boot phase or event bus; core services are bound once at construction.
+- Exact static routes use a method + path hash index — O(1), independent of route count.
+- Dynamic candidates are limited by the first matching static route, preserving registration order.
+- Paths with a different segment count are rejected before PCRE runs.
+- The container caches argument and constructor plans; request paths are normalized once.
+- No provider boot phase or event bus in the request path.
 - `examples/benchmark.php` runs a small static/dynamic dispatch loop so you can measure throughput on your machine.
 
 ## Running tests

@@ -13,7 +13,7 @@ use ReflectionMethod;
 use ReflectionNamedType;
 
 /**
- * Small PSR-11-style container with auto-wiring. No service providers.
+ * Small PSR-11-style container with auto-wiring and cached resolution plans.
  */
 final class Container
 {
@@ -28,6 +28,12 @@ final class Container
 
     /** @var array<string, ReflectionFunction|ReflectionMethod> */
     private array $reflectionCache = [];
+
+    /** @var array<string, list<array{name: string, class: ?string, hasDefault: bool, default: mixed}>> */
+    private array $callPlans = [];
+
+    /** @var array<string, array{reflection: ReflectionClass, instantiable: bool, params: list<array{name: string, class: ?string, hasDefault: bool, default: mixed}>}> */
+    private array $buildPlans = [];
 
     public function instance(string $id, mixed $value): void
     {
@@ -76,28 +82,26 @@ final class Container
         return $this->resolve($id, $parameters);
     }
 
-    /** Invoke a callable, resolving arguments from $parameters or the container. */
+    /** Invoke a callable using a cached argument plan. */
     public function call(callable $callback, array $parameters = []): mixed
     {
-        $reflection = $this->reflectionFor($callback);
         $arguments = [];
 
-        foreach ($reflection->getParameters() as $parameter) {
-            $name = $parameter->getName();
+        foreach ($this->callPlan($callback) as $parameter) {
+            $name = $parameter['name'];
 
             if (array_key_exists($name, $parameters)) {
                 $arguments[] = $parameters[$name];
                 continue;
             }
 
-            $type = $parameter->getType();
-            if ($type instanceof ReflectionNamedType && !$type->isBuiltin() && $this->has($type->getName())) {
-                $arguments[] = $this->resolve($type->getName(), []);
+            if ($parameter['class'] !== null && $this->has($parameter['class'])) {
+                $arguments[] = $this->resolve($parameter['class'], []);
                 continue;
             }
 
-            if ($parameter->isDefaultValueAvailable()) {
-                $arguments[] = $parameter->getDefaultValue();
+            if ($parameter['hasDefault']) {
+                $arguments[] = $parameter['default'];
                 continue;
             }
 
@@ -150,40 +154,82 @@ final class Container
             throw new NotFoundException($class);
         }
 
-        $reflection = new ReflectionClass($class);
-        if (!$reflection->isInstantiable()) {
+        $plan = $this->buildPlans[$class] ??= $this->buildPlan($class);
+        if (!$plan['instantiable']) {
             throw new ContainerException("[{$class}] is not instantiable.");
         }
 
-        $constructor = $reflection->getConstructor();
-        if ($constructor === null) {
-            return new $class();
+        if ($plan['params'] === []) {
+            return $plan['reflection']->newInstance();
         }
 
         $arguments = [];
-        foreach ($constructor->getParameters() as $parameter) {
-            $name = $parameter->getName();
+        foreach ($plan['params'] as $parameter) {
+            $name = $parameter['name'];
 
             if (array_key_exists($name, $parameters)) {
                 $arguments[] = $parameters[$name];
                 continue;
             }
 
-            $type = $parameter->getType();
-            if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
-                $arguments[] = $this->resolve($type->getName(), []);
+            if ($parameter['class'] !== null) {
+                $arguments[] = $this->resolve($parameter['class'], []);
                 continue;
             }
 
-            if ($parameter->isDefaultValueAvailable()) {
-                $arguments[] = $parameter->getDefaultValue();
+            if ($parameter['hasDefault']) {
+                $arguments[] = $parameter['default'];
                 continue;
             }
 
             throw new ContainerException("Cannot resolve dependency \${$name} in [{$class}].");
         }
 
-        return $reflection->newInstanceArgs($arguments);
+        return $plan['reflection']->newInstanceArgs($arguments);
+    }
+
+    /** @return array{reflection: ReflectionClass, instantiable: bool, params: list<array{name: string, class: ?string, hasDefault: bool, default: mixed}>} */
+    private function buildPlan(string $class): array
+    {
+        $reflection = new ReflectionClass($class);
+        $constructor = $reflection->getConstructor();
+
+        return [
+            'reflection' => $reflection,
+            'instantiable' => $reflection->isInstantiable(),
+            'params' => $constructor === null ? [] : $this->parameterPlan($constructor),
+        ];
+    }
+
+    /** @return list<array{name: string, class: ?string, hasDefault: bool, default: mixed}> */
+    private function callPlan(callable $callback): array
+    {
+        $key = $this->cacheKey($callback);
+        if ($key === null) {
+            return $this->parameterPlan(new ReflectionFunction($callback));
+        }
+
+        return $this->callPlans[$key] ??= $this->parameterPlan($this->reflectionFor($callback));
+    }
+
+    /** @return list<array{name: string, class: ?string, hasDefault: bool, default: mixed}> */
+    private function parameterPlan(ReflectionFunction|ReflectionMethod $reflection): array
+    {
+        $plan = [];
+
+        foreach ($reflection->getParameters() as $parameter) {
+            $type = $parameter->getType();
+            $plan[] = [
+                'name' => $parameter->getName(),
+                'class' => $type instanceof ReflectionNamedType && !$type->isBuiltin()
+                    ? $type->getName()
+                    : null,
+                'hasDefault' => $parameter->isDefaultValueAvailable(),
+                'default' => $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null,
+            ];
+        }
+
+        return $plan;
     }
 
     private function reflectionFor(callable $callback): ReflectionFunction|ReflectionMethod

@@ -34,6 +34,8 @@ final class Route
 
     private readonly bool $hasParameters;
 
+    private readonly int $slashes;
+
     private ?string $routeName = null;
 
     /** @var list<callable> */
@@ -143,6 +145,11 @@ final class Route
         // Static routes are the common case: no regex needed.
         if (!$this->hasParameters) {
             return $this->pattern === $path ? [] : null;
+        }
+
+        // Cheap rejection before PCRE: a parameter cannot add separators.
+        if (substr_count($path, '/') !== $this->slashes) {
+            return null;
         }
 
         if (preg_match($this->regex, $path, $matches) !== 1) {
@@ -313,6 +320,7 @@ final class Route
         $this->parameterNames = array_keys($names);
         $this->constraints = $constraints;
         $this->hasParameters = $names !== [];
+        $this->slashes = substr_count($this->pattern, '/');
 
         return '~^' . $regex . '$~D';
     }

@@ -36,3 +36,23 @@ printf(
     $dynamicTime,
     $dynamicTime > 0 ? $iterations / $dynamicTime : 0,
 );
+
+$large = new Router();
+for ($i = 0; $i < 200; $i++) {
+    $large->get('/route/' . $i, static fn (): string => 'ok');
+}
+$large->get('/target', static fn (): string => 'ok');
+
+$iterations = 20000;
+$start = microtime(true);
+for ($i = 0; $i < $iterations; $i++) {
+    $large->dispatch('GET', '/target');
+}
+$largeTime = microtime(true) - $start;
+
+printf(
+    "201 routes: %d dispatches in %.4fs (%.0f req/s)\n",
+    $iterations,
+    $largeTime,
+    $largeTime > 0 ? $iterations / $largeTime : 0,
+);

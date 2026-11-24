@@ -9,6 +9,8 @@ namespace Kurama;
  */
 final class Request
 {
+    private ?string $pathCache = null;
+
     /**
      * @param array<string, mixed> $query
      * @param array<string, mixed> $body
@@ -94,7 +96,7 @@ final class Request
     /** Normalized path used by the router. */
     public function path(): string
     {
-        return Router::normalizePath($this->uri);
+        return $this->pathCache ??= Router::normalizePath($this->uri);
     }
 
     public function header(string $name, mixed $default = null): mixed
