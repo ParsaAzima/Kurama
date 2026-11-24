@@ -44,7 +44,8 @@ Milestones are feature-driven, not date-driven. A version ships when its accepta
 - Route-level middleware via `Route::middleware()`.
 - Closure-based global/group/route middleware pipeline with short-circuit support.
 - Error rendering: 404, 405 + `Allow`, 500 with debug toggle and custom error handler hook.
-- Service-free design: no container, no providers, no static global instance.
+- Slim-style developer experience: `AppFactory::create()`, handler signature `($request, $response, $args)`, `$response->getBody()->write()`, `$app->add()` / `$route->add()`.
+- Service-free design: no container, no providers, no static global instance, no PSR-7 dependency.
 
 ## v0.3.0 — Router completeness (next)
 

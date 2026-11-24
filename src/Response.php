@@ -9,12 +9,20 @@ namespace Kurama;
  */
 class Response
 {
+    protected Body $body;
+
     /** @param array<string, string> $headers */
     public function __construct(
-        protected string $content = '',
+        string|Body $content = '',
         protected int $status = 200,
         protected array $headers = [],
     ) {
+        $this->body = $content instanceof Body ? $content : new Body($content);
+    }
+
+    public function getBody(): Body
+    {
+        return $this->body;
     }
 
     /** Convert any handler result into a response. */
@@ -96,7 +104,7 @@ class Response
 
     public function getContent(): string
     {
-        return $this->content;
+        return (string) $this->body;
     }
 
     public function send(): void
@@ -108,6 +116,6 @@ class Response
             }
         }
 
-        echo $this->content;
+        echo $this->body;
     }
 }

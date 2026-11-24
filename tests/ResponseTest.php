@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kurama\Tests;
 
+use Kurama\Body;
 use Kurama\JsonResponse;
 use Kurama\Response;
 use PHPUnit\Framework\TestCase;
@@ -41,6 +42,16 @@ final class ResponseTest extends TestCase
         self::assertNull($original->getHeader('X-Test'));
         self::assertSame(201, $modified->getStatus());
         self::assertSame('yes', $modified->getHeader('X-Test'));
+    }
+
+    public function testBodyCanBeWritten(): void
+    {
+        $response = Response::text('Hello ');
+
+        self::assertInstanceOf(Body::class, $response->getBody());
+        $response->getBody()->write('world');
+
+        self::assertSame('Hello world', $response->getContent());
     }
 
     public function testRedirectFactory(): void

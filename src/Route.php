@@ -55,6 +55,12 @@ final class Route
         return $this;
     }
 
+    /** Alias for Slim-style `$route->add($middleware)`. */
+    public function add(callable ...$middleware): self
+    {
+        return $this->middleware(...$middleware);
+    }
+
     /** @return list<callable> */
     public function middlewares(): array
     {

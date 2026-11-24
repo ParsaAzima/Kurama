@@ -53,6 +53,39 @@ final class Request
         return $this->method;
     }
 
+    /** Slim-style aliases. */
+    public function getMethod(): string
+    {
+        return $this->method;
+    }
+
+    /** @return array<string, mixed> */
+    public function getQueryParams(): array
+    {
+        return $this->query;
+    }
+
+    /** @return array<string, mixed> */
+    public function getParsedBody(): array
+    {
+        return $this->body;
+    }
+
+    public function getAttribute(string $name, mixed $default = null): mixed
+    {
+        return $this->params[$name] ?? $default;
+    }
+
+    public function withAttribute(string $name, mixed $value): self
+    {
+        return $this->withParams(array_merge($this->params, [$name => $value]));
+    }
+
+    public function getHeaderLine(string $name): string
+    {
+        return (string) $this->header($name, '');
+    }
+
     public function isMethod(string $method): bool
     {
         return $this->method === strtoupper(trim($method));

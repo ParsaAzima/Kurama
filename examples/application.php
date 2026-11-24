@@ -4,28 +4,39 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
+use Kurama\AppFactory;
 use Kurama\Application;
 use Kurama\Request;
 use Kurama\Response;
 
-$app = new Application(['debug' => true]);
+$app = AppFactory::create(['debug' => true]);
 
-$app->middleware(static function (Request $request, callable $next): Response {
+$app->add(function (Request $request, callable $next): Response {
     return $next($request)->withHeader('X-Powered-By', 'Kurama');
 });
 
-$app->get('/', static fn (): Response => Response::text('Hello from Kurama!'));
+$app->get('/', function (Request $request, Response $response): Response {
+    $response->getBody()->write('Hello from Kurama!');
 
-$app->get('/hello/{name}', static function (string $name, Request $request): Response {
-    return Response::json([
-        'message' => "Hello, {$name}!",
-        'ip' => $request->ip(),
-    ]);
+    return $response;
 });
 
-$app->group(['prefix' => '/api'], static function (Application $app): void {
-    $app->get('/ping', static fn (): Response => Response::json(['pong' => true]));
-    $app->get('/users/{id}', static fn (string $id): Response => Response::json(['id' => $id]));
+$app->get('/hello/{name}', function (Request $request, Response $response, array $args): Response {
+    $response->getBody()->write('Hello, ' . $args['name'] . '!');
+
+    return $response;
+});
+
+$app->group(['prefix' => '/api'], function (Application $app): void {
+    $app->get('/ping', function (Request $request, Response $response): Response {
+        $response->getBody()->write('pong');
+
+        return $response;
+    });
+
+    $app->get('/users/{id}', function (Request $request, Response $response, array $args): Response {
+        return Response::json(['id' => $args['id'], 'q' => $request->getQueryParams()['q'] ?? null]);
+    });
 });
 
 $app->run();

@@ -104,6 +104,12 @@ class Application
         return $this;
     }
 
+    /** Alias for Slim-style `$app->add($middleware)`. */
+    public function add(callable ...$middleware): self
+    {
+        return $this->middleware(...$middleware);
+    }
+
     /** Override default error rendering: fn (Throwable $e, Request $request) => Response|mixed */
     public function setErrorHandler(callable $handler): self
     {
@@ -125,9 +131,9 @@ class Application
             $parameters = $result['parameters'];
             $request = $request->withParams($parameters);
 
-            $action = function (Request $request) use ($route, $parameters): mixed {
-                $handler = $route->handler();
-                $output = $this->invoke($handler, $parameters, $request);
+            $initialResponse = Response::html('');
+            $action = function (Request $request) use ($route, $parameters, $initialResponse): mixed {
+                $output = $this->invoke($route->handler(), $parameters, $request, $initialResponse);
 
                 return $output instanceof Response ? $output : Response::make($output);
             };
@@ -152,8 +158,10 @@ class Application
         $this->handle($request ?? Request::capture())->send();
     }
 
-    /** Inject route parameters by name, plus Request when asked for. */
-    private function invoke(callable $handler, array $parameters, Request $request): mixed
+    /**
+     * Inject Slim-style arguments: Request, Response, $args and route params by name.
+     */
+    private function invoke(callable $handler, array $parameters, Request $request, Response $response): mixed
     {
         $reflection = match (true) {
             $handler instanceof \Closure, is_string($handler) => new ReflectionFunction($handler),
@@ -168,6 +176,10 @@ class Application
 
             if ($name === 'request' || ($type instanceof ReflectionNamedType && $type->getName() === Request::class)) {
                 $arguments[] = $request;
+            } elseif ($name === 'response' || ($type instanceof ReflectionNamedType && $type->getName() === Response::class)) {
+                $arguments[] = $response;
+            } elseif ($name === 'args') {
+                $arguments[] = $parameters;
             } elseif (array_key_exists($name, $parameters)) {
                 $arguments[] = $parameters[$name];
             } elseif ($parameter->isDefaultValueAvailable()) {

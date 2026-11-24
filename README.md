@@ -35,21 +35,21 @@ composer serve
 
 require __DIR__ . '/vendor/autoload.php';
 
+use Kurama\AppFactory;
 use Kurama\Application;
 use Kurama\Request;
 use Kurama\Response;
 
-$app = new Application(['debug' => true]);
+$app = AppFactory::create(['debug' => true]);
 
-$app->middleware(function (Request $request, callable $next): Response {
+$app->add(function (Request $request, callable $next): Response {
     return $next($request)->withHeader('X-Powered-By', 'Kurama');
 });
 
-$app->get('/hello/{name}', function (string $name, Request $request): Response {
-    return Response::json([
-        'message' => "Hello, {$name}!",
-        'ip' => $request->ip(),
-    ]);
+$app->get('/hello/{name}', function (Request $request, Response $response, array $args): Response {
+    $response->getBody()->write('Hello, ' . $args['name'] . '!');
+
+    return $response;
 });
 
 $app->group(['prefix' => '/api'], function (Application $app): void {
@@ -58,6 +58,8 @@ $app->group(['prefix' => '/api'], function (Application $app): void {
 
 $app->run();
 ```
+
+The observable style is Slim-like: `AppFactory::create()`, handlers receiving `($request, $response, $args)`, `$response->getBody()->write()`, `$app->add()` and `$app->run()`. It is **not** PSR-7 compliant and adds no runtime dependency — the body and messages are deliberately tiny local value objects.
 
 Run it with `composer serve` and visit `http://127.0.0.1:8000/hello/world`.
 
@@ -121,7 +123,13 @@ $app->get('/products/{slug}', $handler);
 
 ```php
 $request->method();              // "GET"
+$request->getMethod();           // Slim-style alias
 $request->path();                // "/users/42"
+$request->getQueryParams();      // all query values
+$request->getParsedBody();       // parsed request body
+$request->getAttribute('id');    // matched route parameter
+$request->withAttribute('user', $user); // returns a copy
+$request->getHeaderLine('Accept');
 $request->query('page', '1');    // query string
 $request->input('name');         // body first, then query
 $request->param('id');           // matched route parameter
@@ -143,6 +151,7 @@ Response::json(['ok' => true], 201);
 Response::redirect('/home', 302);
 Response::make(['ok' => true]); // JsonResponse
 
+$response->getBody()->write('Hello'); // Slim-style body writing
 $response->withStatus(201)->withHeader('X-Test', 'yes');
 $response->getStatus();
 $response->getHeader('Content-Type');
@@ -150,7 +159,7 @@ $response->getContent();
 $response->send();
 ```
 
-`with*` methods return copies; responses are not mutated in place. `JsonResponse` sets `Content-Type: application/json; charset=UTF-8` and encodes with `JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES`.
+`with*` methods return copies; responses are not mutated in place. `getBody()` returns a tiny `Kurama\Body` with `write()` and `__toString()` — enough for Slim-style handlers, but not a PSR-7 stream. `JsonResponse` sets `Content-Type: application/json; charset=UTF-8` and encodes with `JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES`.
 
 ## Route groups
 
@@ -172,19 +181,19 @@ Middleware order is: global → group → route.
 Middleware is any callable with the signature `fn (Request $request, callable $next): Response`.
 
 ```php
-$app->middleware(function (Request $request, callable $next): Response {
+$app->add(function (Request $request, callable $next): Response {
     $start = microtime(true);
     $response = $next($request);
 
     return $response->withHeader('X-Response-Time', (string) (microtime(true) - $start));
 });
 
-$app->get('/limited', $handler)->middleware(function (Request $request, callable $next): Response {
+$app->get('/limited', $handler)->add(function (Request $request, callable $next): Response {
     return Response::text('blocked'); // short-circuit: $next is not called
 });
 ```
 
-There is no middleware interface, container or reflection magic — just callables.
+`middleware()` and `Route::middleware()` remain available as aliases. There is no middleware interface, container or reflection magic — just callables.
 
 ## Error handling
 
@@ -250,7 +259,9 @@ use Kurama\Exceptions\MethodNotAllowedException;
 
 ### Other classes
 
-- `Route`: `methods()`, `pattern()`, `handler()`, `parameterNames()`, `middleware(...)` / `middlewares()`, `supports()`, `matchPath()`.
+- `AppFactory::create(array $config = []): Application` — Slim-style factory.
+- `Body`: `write(string): self`, `__toString()` — returned by `Response::getBody()`.
+- `Route`: `methods()`, `pattern()`, `handler()`, `parameterNames()`, `middleware(...)` / `add(...)` / `middlewares()`, `supports()`, `matchPath()`.
 - `RouteCollection`: `add()`, `all()`, `get()`, `count()`, `isEmpty()`.
 - `RouteMatcher`: `match(RouteCollection, string, string): ?array`.
 - `Request`: see HTTP request section.
@@ -272,3 +283,4 @@ Not included (see [ROADMAP.md](ROADMAP.md)):
 - Dependency injection containers, service providers or event buses.
 - Named routes, inline regex constraints and route caching.
 - Full CLI kernel or automatic OPTIONS responses.
+- PSR-7 / PSR-15 interoperability (the style is inspired by Slim, not compatible with its contracts).

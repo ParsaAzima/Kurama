@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kurama\Tests;
 
+use Kurama\AppFactory;
 use Kurama\Application;
 use Kurama\JsonResponse;
 use Kurama\Request;
@@ -194,6 +195,56 @@ final class ApplicationTest extends TestCase
 
         self::assertSame(418, $response->getStatus());
         self::assertSame('No route found for GET /missing.', json_decode($response->getContent(), true)['custom']);
+    }
+
+    public function testSlimStyleHandlerSignature(): void
+    {
+        $app = AppFactory::create();
+        $app->get('/hello/{name}', function (Request $request, Response $response, array $args): Response {
+            $response->getBody()->write('Hello, ' . $args['name'] . '!');
+
+            return $response;
+        });
+
+        $response = $app->handle(new Request('GET', '/hello/kurama'));
+
+        self::assertSame('Hello, kurama!', $response->getContent());
+    }
+
+    public function testAppFactoryAndAddAlias(): void
+    {
+        $app = AppFactory::create(['debug' => true]);
+        $app->add(function (Request $request, callable $next): Response {
+            return $next($request)->withHeader('X-Add', 'yes');
+        });
+        $app->get('/x', static fn (): Response => Response::text('ok'));
+
+        $response = $app->handle(new Request('GET', '/x'));
+
+        self::assertSame('ok', $response->getContent());
+        self::assertSame('yes', $response->getHeader('X-Add'));
+    }
+
+    public function testRequestSlimStyleAliases(): void
+    {
+        $request = new Request(
+            'GET',
+            '/users/7',
+            query: ['q' => 'z'],
+            body: ['name' => 'a'],
+            headers: ['X-Test' => 'v'],
+            params: ['id' => '7'],
+        );
+
+        self::assertSame('GET', $request->getMethod());
+        self::assertSame(['q' => 'z'], $request->getQueryParams());
+        self::assertSame(['name' => 'a'], $request->getParsedBody());
+        self::assertSame('7', $request->getAttribute('id'));
+        self::assertSame('v', $request->getHeaderLine('x-test'));
+
+        $withAttribute = $request->withAttribute('user', 'u1');
+        self::assertNull($request->getAttribute('user'));
+        self::assertSame('u1', $withAttribute->getAttribute('user'));
     }
 
     public function testRunUsesExplicitMethodAndUri(): void

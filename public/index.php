@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Kurama\AppFactory;
 use Kurama\Application;
 use Kurama\Request;
 use Kurama\Response;
@@ -14,28 +15,36 @@ if ($path !== '/' && is_file(__DIR__ . $path)) {
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$app = new Application(['debug' => true]);
+$app = AppFactory::create(['debug' => true]);
 
-$app->middleware(static function (Request $request, callable $next): Response {
+$app->add(function (Request $request, callable $next): Response {
     $start = microtime(true);
     $response = $next($request);
 
-    return $response->withHeader(
-        'X-Response-Time',
-        number_format((microtime(true) - $start) * 1000, 2) . 'ms',
-    );
+    return $response->withHeader('X-Response-Time', number_format((microtime(true) - $start) * 1000, 2) . 'ms');
 });
 
-$app->get('/', static fn (): Response => Response::html('<h1>Hello from Kurama!</h1>'));
+$app->get('/', function (Request $request, Response $response): Response {
+    $response->getBody()->write('<h1>Hello from Kurama!</h1>');
 
-$app->group(['prefix' => '/api'], static function (Application $app): void {
-    $app->get('/ping', static fn (): Response => Response::json(['pong' => true]));
+    return $response;
+});
 
-    $app->get('/users/{id}', static function (string $id, Request $request): Response {
-        return Response::json(['id' => $id, 'q' => $request->query('q')]);
+$app->group(['prefix' => '/api'], function (Application $app): void {
+    $app->get('/ping', function (Request $request, Response $response): Response {
+        return Response::json(['pong' => true]);
     });
 
-    $app->post('/users', static fn (): Response => Response::json(['created' => true]));
+    $app->get('/users/{id}', function (Request $request, Response $response, array $args): Response {
+        return Response::json([
+            'id' => $args['id'],
+            'q' => $request->getQueryParams()['q'] ?? null,
+        ]);
+    });
+
+    $app->post('/users', function (Request $request, Response $response): Response {
+        return Response::json(['created' => true], 201);
+    });
 });
 
 $app->run();
