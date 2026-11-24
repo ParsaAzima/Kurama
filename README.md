@@ -369,6 +369,7 @@ use Kurama\Exceptions\MethodNotAllowedException;
 
 - Route regexes are compiled once, at registration time.
 - Exact static routes use a method + path hash index — O(1), independent of route count.
+- Repeated identical dispatches hit a last-request memo; hot URLs avoid normalization and lookup entirely.
 - Dynamic candidates are limited by the first matching static route, preserving registration order.
 - Paths with a different segment count are rejected before PCRE runs.
 - The container caches argument and constructor plans; request paths are normalized once.

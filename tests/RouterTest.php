@@ -398,6 +398,17 @@ final class RouterTest extends TestCase
         $router->url('user.show', ['id' => 'abc']);
     }
 
+    public function testMemoizedStaticDispatchDoesNotBreakDynamicRoutes(): void
+    {
+        $router = new Router();
+        $router->get('/x', static fn (): string => 'static');
+        $router->get('/d/{id}', static fn (string $id): string => 'd' . $id);
+
+        self::assertSame('static', $router->dispatch('GET', '/x'));
+        self::assertSame('d5', $router->dispatch('GET', '/d/5'));
+        self::assertSame('static', $router->dispatch('GET', '/x'));
+    }
+
     protected function tearDown(): void
     {
         http_response_code(200);

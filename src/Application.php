@@ -33,6 +33,15 @@ class Application
     /** @var null|callable */
     private $errorHandler = null;
 
+    /** @var array<int, callable> */
+    private array $handlerCache = [];
+
+    /** @var array<int, \Closure> */
+    private array $actionCache = [];
+
+    /** @var array<int, list<callable>> */
+    private array $pipelineCache = [];
+
     public function __construct(
         array|Config $config = [],
         ?Router $router = null,
@@ -124,6 +133,7 @@ class Application
     public function middleware(callable ...$middleware): self
     {
         array_push($this->middleware, ...$middleware);
+        $this->pipelineCache = [];
 
         return $this;
     }
@@ -183,7 +193,9 @@ class Application
 
             $route = $result['route'];
             $parameters = $result['parameters'];
-            $request = $request->withParams($parameters);
+            if ($parameters !== []) {
+                $request = $request->withParams($parameters);
+            }
 
             $initialResponse = Response::html('');
             $this->container->instance(Request::class, $request);
@@ -191,26 +203,18 @@ class Application
             $this->container->instance(Response::class, $initialResponse);
             $this->container->instance('response', $initialResponse);
 
-            $action = function (Request $request) use ($route, $parameters, $initialResponse): mixed {
-                $handler = $this->resolveHandler($route->handler());
-                if (is_array($handler) && $handler[0] instanceof Controller) {
-                    $handler[0]->setContext($request, $initialResponse, $this->template, $this->container);
-                }
+            $routeId = spl_object_id($route);
+            $handler = $this->handlerCache[$routeId] ??= $this->resolveHandler($route->handler());
+            $action = $this->actionCache[$routeId] ??= $this->buildAction($handler);
+            $destination = static fn (Request $current): mixed => $action($current, $parameters, $initialResponse);
 
-                $output = $this->container->call($handler, array_merge($parameters, [
-                    'request' => $request,
-                    'response' => $initialResponse,
-                    'args' => $parameters,
-                ]));
-
-                return $output instanceof Response ? $output : Response::make($output);
-            };
-
-            $next = $action;
-            $middleware = array_merge($this->middleware, $route->middlewares());
-            foreach (array_reverse($middleware) as $item) {
+            $middleware = $this->pipelineCache[$routeId] ??= array_reverse(
+                array_merge($this->middleware, $route->middlewares()),
+            );
+            $next = $destination;
+            foreach ($middleware as $item) {
                 $previous = $next;
-                $next = static fn (Request $request): mixed => $item($request, $previous);
+                $next = static fn (Request $current): mixed => $item($current, $previous);
             }
 
             $response = $next($request);
@@ -240,6 +244,24 @@ class Application
         $this->container->instance('config', $this->configuration);
         $this->container->instance(Environment::class, $this->environment);
         $this->container->instance('env', $this->environment);
+    }
+
+    /** Build a reusable action runner for a resolved handler. */
+    private function buildAction(callable $handler): \Closure
+    {
+        return function (Request $request, array $parameters, Response $initialResponse) use ($handler): mixed {
+            if (is_array($handler) && $handler[0] instanceof Controller) {
+                $handler[0]->setContext($request, $initialResponse, $this->template, $this->container);
+            }
+
+            $output = $this->container->call($handler, array_merge($parameters, [
+                'request' => $request,
+                'response' => $initialResponse,
+                'args' => $parameters,
+            ]));
+
+            return $output instanceof Response ? $output : Response::make($output);
+        };
     }
 
     /** Resolve class-string and Class@method handlers through the container. */

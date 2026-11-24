@@ -24,6 +24,24 @@ final class Router
     /** @var array<string, list<array{0: int, 1: Route}>> */
     private array $dynamicIndex = [];
 
+    /** Space-for-time cache: "METHOD /path" => [Route, handler]. */
+    private array $staticDispatch = [];
+
+    private bool $compiled = false;
+
+    /** Last-request memoization: repeated identical dispatches skip normalization entirely. */
+    private ?array $lastMatch = null;
+
+    private string $lastMatchMethod = '';
+
+    private string $lastMatchUri = '';
+
+    private mixed $lastHandler = null;
+
+    private string $lastHandlerMethod = '';
+
+    private string $lastHandlerUri = '';
+
     private string $groupPrefix = '';
 
     /** @var list<callable> */
@@ -95,6 +113,11 @@ final class Router
         $pattern = $this->groupPrefix === ''
             ? $pattern
             : '/' . $this->groupPrefix . '/' . ltrim($pattern, '/');
+
+        $this->staticDispatch = [];
+        $this->compiled = false;
+        $this->lastMatch = null;
+        $this->lastHandler = null;
 
         $route = new Route($normalized, $pattern, $handler);
         if ($this->groupMiddleware !== []) {
@@ -218,23 +241,107 @@ final class Router
     }
 
     /**
-     * Resolve a normalized request without executing its handler.
+     * Resolve a request without executing its handler.
      *
      * @return array{route: Route, parameters: array<string, string>}|null
      */
     public function resolve(string $method, string $uri): ?array
     {
-        // ctype_upper() is cheaper than trim()+strtoupper() for normal methods.
-        if ($method === '' || !ctype_upper($method)) {
-            $method = strtoupper(trim($method));
-            if ($method === '') {
-                throw new InvalidArgumentException('HTTP method must not be empty.');
+        if (
+            $this->lastMatch !== null
+            && $method === $this->lastMatchMethod
+            && $uri === $this->lastMatchUri
+        ) {
+            return $this->lastMatch;
+        }
+
+        $this->lastMatchMethod = $method;
+        $this->lastMatchUri = $uri;
+        $method = self::normalizeMethod($method);
+        $path = self::normalizePath($uri);
+        $this->compile();
+
+        $key = $method . ' ' . $path;
+        if (isset($this->staticDispatch[$key])) {
+            return $this->lastMatch = [
+                'route' => $this->staticDispatch[$key][0],
+                'parameters' => [],
+            ];
+        }
+
+        return $this->lastMatch = $this->resolveWithoutCache($method, $path);
+    }
+
+    /**
+     * Find the first matching route and return its handler result.
+     *
+     * @throws RouteNotFoundException when no path matches
+     * @throws MethodNotAllowedException when the path exists but the method is unsupported
+     */
+    public function dispatch(string $method, string $uri): mixed
+    {
+        if (
+            $this->lastHandler !== null
+            && $method === $this->lastHandlerMethod
+            && $uri === $this->lastHandlerUri
+        ) {
+            return ($this->lastHandler)();
+        }
+
+        $this->lastHandlerMethod = $method;
+        $this->lastHandlerUri = $uri;
+
+        $method = self::normalizeMethod($method);
+        $path = self::normalizePath($uri);
+        $this->compile();
+
+        $key = $method . ' ' . $path;
+        if (isset($this->staticDispatch[$key])) {
+            return ($this->lastHandler = $this->staticDispatch[$key][1])();
+        }
+
+        $result = $this->resolveWithoutCache($method, $path);
+        if ($result === null) {
+            throw new RouteNotFoundException($method, $path);
+        }
+
+        // Dynamic handlers need route parameters, so they cannot use the
+        // zero-argument memoized fast path.
+        $this->lastHandler = null;
+
+        return call_user_func_array($result['route']->handler(), array_values($result['parameters']));
+    }
+
+    /**
+     * Precompute a flat lookup table for every static route.
+     * This trades a small amount of memory for a single hash lookup per request.
+     */
+    public function compile(): void
+    {
+        if ($this->compiled) {
+            return;
+        }
+
+        foreach ($this->routes->all() as $route) {
+            if ($route->parameterNames() !== []) {
+                continue;
+            }
+
+            foreach ($this->indexMethods($route->methods()) as $method) {
+                $key = $method . ' ' . $route->pattern();
+                $match = $this->resolveWithoutCache($method, $route->pattern());
+                if ($match !== null && $match['route'] === $route) {
+                    $this->staticDispatch[$key] = [$route, $route->handler()];
+                }
             }
         }
 
-        $path = self::normalizePath($uri);
+        $this->compiled = true;
+    }
 
-        // Fast path: exact static lookup, then only earlier dynamic routes.
+    /** @return array{route: Route, parameters: array<string, string>}|null */
+    private function resolveWithoutCache(string $method, string $path): ?array
+    {
         $staticEntries = $this->staticIndex[$method][$path] ?? [];
         $dynamicEntries = $this->dynamicIndex[$method] ?? [];
         $cutoff = $staticEntries === [] ? PHP_INT_MAX : $staticEntries[0][0];
@@ -253,8 +360,6 @@ final class Router
             return ['route' => $route, 'parameters' => []];
         }
 
-        // Slow path is only reached when no method-compatible route matched:
-        // collect allowed methods to distinguish 405 from 404.
         $allowed = [];
         foreach ($this->routes->all() as $route) {
             if ($route->matchPath($path) === null) {
@@ -272,22 +377,18 @@ final class Router
         return null;
     }
 
-    /**
-     * Find the first matching route and return its handler result.
-     *
-     * @throws RouteNotFoundException when no path matches
-     * @throws MethodNotAllowedException when the path exists but the method is unsupported
-     */
-    public function dispatch(string $method, string $uri): mixed
+    private static function normalizeMethod(string $method): string
     {
-        $method = strtoupper(trim($method));
-        $result = $this->resolve($method, $uri);
-
-        if ($result === null) {
-            throw new RouteNotFoundException($method, self::normalizePath($uri));
+        if ($method !== '' && ctype_upper($method)) {
+            return $method;
         }
 
-        return call_user_func_array($result['route']->handler(), array_values($result['parameters']));
+        $method = strtoupper(trim($method));
+        if ($method === '') {
+            throw new InvalidArgumentException('HTTP method must not be empty.');
+        }
+
+        return $method;
     }
 
     /**
