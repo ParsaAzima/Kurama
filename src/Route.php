@@ -45,6 +45,22 @@ final class Route
         $this->regex = $this->compilePattern();
     }
 
+    /** @var list<callable> */
+    private array $middleware = [];
+
+    public function middleware(callable ...$middleware): self
+    {
+        array_push($this->middleware, ...$middleware);
+
+        return $this;
+    }
+
+    /** @return list<callable> */
+    public function middlewares(): array
+    {
+        return $this->middleware;
+    }
+
     /** @return list<string> */
     public function methods(): array
     {

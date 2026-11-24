@@ -1,8 +1,11 @@
-# Kurama Router
+# Kurama
 
-Kurama is a lightweight, standalone PHP micro router inspired by Flask's routing API. It is intentionally small: a focused core with predictable behavior, native PHP/PCRE matching and no runtime dependencies.
+Kurama is a lightweight PHP micro framework inspired by Flask's developer experience. It is built in layers:
 
-This release is **Kurama Router v0.1.0** — HTTP routing only.
+- `Router` — standalone, side-effect-free routing core (native PHP/PCRE, zero dependencies).
+- `Application` — optional thin layer adding HTTP requests/responses, route groups, middleware and error rendering.
+
+There is no DI container, no service provider system and no runtime dependency.
 
 See [ROADMAP.md](ROADMAP.md) for planned versions and design boundaries.
 
@@ -22,182 +25,236 @@ For local development of this repository:
 ```bash
 composer install
 vendor/bin/phpunit
+composer serve
 ```
 
-## Basic usage
+## Quick start
 
 ```php
 <?php
 
 require __DIR__ . '/vendor/autoload.php';
 
-use Kurama\Router;
+use Kurama\Application;
+use Kurama\Request;
+use Kurama\Response;
 
-$router = new Router();
+$app = new Application(['debug' => true]);
 
-$router->get('/', fn () => 'Hello from Kurama!');
-
-$router->get('/users/{id}', function (string $id): string {
-    return "User ID: {$id}";
+$app->middleware(function (Request $request, callable $next): Response {
+    return $next($request)->withHeader('X-Powered-By', 'Kurama');
 });
 
-echo $router->dispatch(
-    $_SERVER['REQUEST_METHOD'] ?? 'GET',
-    parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'
-);
+$app->get('/hello/{name}', function (string $name, Request $request): Response {
+    return Response::json([
+        'message' => "Hello, {$name}!",
+        'ip' => $request->ip(),
+    ]);
+});
+
+$app->group(['prefix' => '/api'], function (Application $app): void {
+    $app->get('/ping', fn (): Response => Response::json(['pong' => true]));
+});
+
+$app->run();
 ```
 
-`dispatch()` **returns** the handler's result. It never sends HTTP headers or output by itself, so the caller stays in control of the response.
+Run it with `composer serve` and visit `http://127.0.0.1:8000/hello/world`.
 
-A runnable version lives in `examples/basic.php`.
+A complete example is in `examples/application.php`. A router-only example is in `examples/basic.php`.
 
-## Running the framework
+## Project structure
 
-Point your web server at `public/index.php`, or use PHP's built-in server:
-
-```bash
-composer serve
-# http://127.0.0.1:8000/
-# http://127.0.0.1:8000/users/42
 ```
-
-The front controller registers routes and calls `run()`:
-
-```php
-$router = new Router();
-$router->get('/users/{id}', fn (string $id) => ['id' => $id]);
-
-$router->run();
+src/
+├── Application.php        HTTP layer: request handling, middleware, errors
+├── Router.php             Routing API and dispatch
+├── Route.php              One route: methods, pattern, handler, middleware
+├── RouteCollection.php    Ordered route storage
+├── RouteMatcher.php       Matching and 404/405 decisions
+├── Request.php            Incoming HTTP request value object
+├── Response.php           HTTP response value object
+├── JsonResponse.php       JSON-encoded response
+└── Exceptions/            RouteNotFoundException, MethodNotAllowedException
+public/index.php           Front controller
+tests/                     PHPUnit tests
+examples/                  Runnable examples
 ```
-
-`run()` reads `$_SERVER['REQUEST_METHOD']` and `$_SERVER['REQUEST_URI']` by default, dispatches the request, sends a `Content-Type` header, and echoes the result. You can pass the method and URI explicitly — useful for testing or custom entry points:
-
-```php
-$router->run('GET', '/users/42');
-```
-
-`run()` is a thin convenience adapter on top of `dispatch()`:
-
-- It sets status `404` for a missing route and `405` (with an `Allow` header) for a method mismatch.
-- Array, `JsonSerializable` and `stdClass` results are encoded as JSON; scalars are echoed as text.
-- `dispatch()` remains side-effect free and still returns the handler result.
 
 ## HTTP methods
 
-Registration helpers:
+Available on both `Application` and `Router`:
 
 ```php
-$router->get($pattern, $handler);
-$router->post($pattern, $handler);
-$router->put($pattern, $handler);
-$router->patch($pattern, $handler);
-$router->delete($pattern, $handler);
-$router->options($pattern, $handler);
-$router->head($pattern, $handler);
-$router->any($pattern, $handler);
+$app->get($pattern, $handler);
+$app->post($pattern, $handler);
+$app->put($pattern, $handler);
+$app->patch($pattern, $handler);
+$app->delete($pattern, $handler);
+$app->options($pattern, $handler);
+$app->head($pattern, $handler);
+$app->any($pattern, $handler);
+$app->match(['GET', 'POST'], $pattern, $handler);
 ```
 
-`any()` registers a route that accepts `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` and `HEAD`.
+`any()` accepts every supported method. HEAD requests implicitly fall back to a GET route unless an explicit HEAD route is registered earlier. OPTIONS must be registered explicitly.
 
-To register one handler for several methods:
+## Route parameters
+
+Placeholders match exactly one URL segment:
 
 ```php
-$router->match(['GET', 'POST'], '/users', $handler);
+$app->get('/users/{id}', $handler);
+$app->get('/posts/{post}/comments/{comment}', $handler);
+$app->get('/products/{slug}', $handler);
 ```
 
-`match()` also accepts a single method string. Method names are normalized to uppercase. HEAD requests implicitly fall back to a matching GET route unless an explicit HEAD route is registered earlier for the same path. OPTIONS routes must be registered explicitly; there is no automatic OPTIONS response.
+- Parameters are strings, passed to handlers in declaration order.
+- Parameters never cross `/`.
+- Percent-encoded values are decoded with `rawurldecode()`; `/products/a%2Fb` yields `a/b` as one parameter.
+- Inside an `Application` handler, a parameter can also be requested by name, and `Request` can be injected by type or by a `$request` argument name.
+- `$request->param('id')` exposes matched parameters inside middleware.
 
-## Dynamic routes
+## HTTP request
 
-Placeholders use curly braces and match exactly one URL segment:
+`Kurama\Request` is immutable. `Request::capture()` builds it from superglobals; `Application::run()` does this automatically.
 
 ```php
-$router->get('/users/{id}', $handler);
-$router->get('/posts/{post}/comments/{comment}', $handler);
-$router->get('/products/{slug}', $handler);
+$request->method();              // "GET"
+$request->path();                // "/users/42"
+$request->query('page', '1');    // query string
+$request->input('name');         // body first, then query
+$request->param('id');           // matched route parameter
+$request->all();                 // query + params + body
+$request->header('Accept');
+$request->wantsJson();
+$request->ip();
+$request->withParams(['id' => '42']); // returns a copy
 ```
 
-- Parameters are extracted in declaration order and passed to the handler as positional arguments.
-- Parameters are always strings.
-- A parameter never crosses a `/` separator.
-- Static segments are escaped before regex generation.
-- Percent-encoded values are decoded with `rawurldecode()`, so `/products/a%2Fb` yields `a/b` as a single parameter.
+## HTTP response and JSON response
 
-Duplicate parameter names and placeholders that are not valid PHP/PHP-PCRE identifiers are rejected.
+Handlers may return a `Response`, any value, or an array. `Application` converts non-responses automatically: arrays become `JsonResponse`, scalars become text responses.
 
-## URL normalization
+```php
+Response::text('Hello');
+Response::html('<h1>Hello</h1>');
+Response::json(['ok' => true], 201);
+Response::redirect('/home', 302);
+Response::make(['ok' => true]); // JsonResponse
 
-- The method is trimmed and uppercased.
-- Query strings and fragments are ignored: `/users/7?page=2` matches `/users/{id}`.
-- A leading slash is always enforced.
-- Trailing slashes are ignored: `/users`, `/users/` and `/users///` are the same path. The root path `/` stays `/`.
-- Route patterns must begin with `/` and may not contain empty segments, whitespace, query strings or fragments.
+$response->withStatus(201)->withHeader('X-Test', 'yes');
+$response->getStatus();
+$response->getHeader('Content-Type');
+$response->getContent();
+$response->send();
+```
+
+`with*` methods return copies; responses are not mutated in place. `JsonResponse` sets `Content-Type: application/json; charset=UTF-8` and encodes with `JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES`.
+
+## Route groups
+
+Groups add a prefix and/or shared middleware. Nested groups are supported.
+
+```php
+$app->group(['prefix' => '/api', 'middleware' => [$authMiddleware]], function (Application $app): void {
+    $app->get('/users/{id}', $handler);
+});
+// Registers GET /api/users/{id} with $authMiddleware.
+
+$app->get('/admin', $handler)->middleware($adminMiddleware);
+```
+
+Middleware order is: global → group → route.
+
+## Basic middleware
+
+Middleware is any callable with the signature `fn (Request $request, callable $next): Response`.
+
+```php
+$app->middleware(function (Request $request, callable $next): Response {
+    $start = microtime(true);
+    $response = $next($request);
+
+    return $response->withHeader('X-Response-Time', (string) (microtime(true) - $start));
+});
+
+$app->get('/limited', $handler)->middleware(function (Request $request, callable $next): Response {
+    return Response::text('blocked'); // short-circuit: $next is not called
+});
+```
+
+There is no middleware interface, container or reflection magic — just callables.
 
 ## Error handling
 
-Two dedicated exceptions are thrown; neither is coupled to HTTP response generation.
+`Application::handle()` converts errors into responses:
+
+| Situation | Status | Response |
+| --- | --- | --- |
+| No matching path | 404 | JSON for APIs/XHR, HTML otherwise |
+| Path matches but method does not | 405 | `Allow` header with allowed methods |
+| Handler throws | 500 | Debug message if `debug` is true, generic message otherwise |
+
+With `debug => false`, 500 errors are written to the PHP error log and details are hidden.
+
+Customize rendering:
+
+```php
+$app->setErrorHandler(fn (Throwable $e, Request $request): Response =>
+    Response::json(['error' => $e->getMessage()], 500));
+```
+
+The router also throws dedicated exceptions when used standalone:
 
 ```php
 use Kurama\Exceptions\RouteNotFoundException;
 use Kurama\Exceptions\MethodNotAllowedException;
 
-try {
-    $router->dispatch('GET', '/missing');
-} catch (RouteNotFoundException $exception) {
-    // No registered path matched.
-    $exception->method(); // "GET"
-    $exception->path();   // "/missing"
-}
-
-try {
-    $router->dispatch('POST', '/users');
-} catch (MethodNotAllowedException $exception) {
-    // The path exists, but no route accepts POST.
-    $exception->allowedMethods(); // e.g. ["GET"]
-    $exception->method();         // "POST"
-    $exception->path();           // "/users"
-}
+// RouteNotFoundException: method(), path()
+// MethodNotAllowedException: allowedMethods(), method(), path()
 ```
 
-Invalid route definitions (bad pattern, unsupported method, non-callable handler) throw `InvalidArgumentException` at registration time.
+## URL normalization and matching rules
 
-## Matching rules
-
-- Routes are evaluated in registration order; the first matching route wins.
-- A static route registered before a dynamic one wins for the same path.
-- An exact path never matches a different path (`/user` does not match `/users`).
-- If the path matches at least one route but none accept the method, `MethodNotAllowedException` is thrown with all allowed methods collected from those routes.
+- Method names are trimmed and uppercased.
+- Query strings and fragments are ignored: `/users/7?page=2` matches `/users/{id}`.
+- A leading slash is enforced; trailing slashes are ignored (`/users`, `/users/` are the same).
+- The first matching route wins; static routes registered before dynamic ones take precedence.
+- `/user` never matches `/users`.
+- Invalid patterns, unsupported methods and non-callable handlers throw `InvalidArgumentException` at registration time.
 
 ## API reference
+
+### `Kurama\Application`
+
+| Method | Description |
+| --- | --- |
+| `get`, `post`, `put`, `patch`, `delete`, `options`, `head`, `any`, `match` | Register routes; returns `Route`. |
+| `group(array $attributes, callable $callback)` | Prefix/middleware group; callback receives the `Application`. |
+| `middleware(callable ...$middleware): self` | Add global middleware. |
+| `setErrorHandler(callable): self` | Override error rendering. |
+| `handle(Request $request): Response` | Dispatch without sending output. |
+| `run(?Request $request = null): void` | Dispatch and send the response. |
 
 ### `Kurama\Router`
 
 | Method | Description |
 | --- | --- |
-| `get`, `post`, `put`, `patch`, `delete`, `options`, `head`, `any` | Register a route; returns the created `Route`. |
-| `match(array\|string $methods, string $pattern, mixed $handler): Route` | Register a route for one or more methods. |
+| `get`, `post`, `put`, `patch`, `delete`, `options`, `head`, `any`, `match` | Register routes; returns `Route`. |
+| `group(array $attributes, callable $callback)` | Prefix/middleware group; callback receives the `Router`. |
 | `routes(): RouteCollection` | Inspect registered routes. |
-| `dispatch(string $method, string $uri): mixed` | Match and execute; returns the handler result. |
-| `run(?string $method = null, ?string $uri = null): void` | Dispatch and emit the result for a real HTTP request. |
+| `resolve(string $method, string $uri): ?array` | Find a route without executing it. |
+| `dispatch(string $method, string $uri): mixed` | Execute the handler and return its raw result. |
+| `run(?string $method = null, ?string $uri = null): void` | Thin standalone HTTP entry point. |
 
-### `Kurama\Route`
+### Other classes
 
-| Method | Description |
-| --- | --- |
-| `methods(): array` | Registered HTTP methods (`['ANY']` for any). |
-| `pattern(): string` | Normalized route pattern. |
-| `handler(): mixed` | Registered callable. |
-| `parameterNames(): array` | Placeholder names in declaration order. |
-| `supports(string $method): bool` | Method support check, including HEAD fallback. |
-| `matchPath(string $path): ?array` | Decoded parameters, or `null` when the path does not match. |
-
-### `Kurama\RouteCollection`
-
-`add(Route $route)`, `all()`, `get(int $index)`, `count()`, `isEmpty()`. The collection implements `Countable` and never exposes its internal array by reference.
-
-### `Kurama\RouteMatcher`
-
-`match(RouteCollection $routes, string $method, string $path): ?array` returns `['route' => Route, 'parameters' => array]` or `null`, and throws `MethodNotAllowedException` for a path/method mismatch. Inputs are expected to be normalized by `Router::dispatch()`.
+- `Route`: `methods()`, `pattern()`, `handler()`, `parameterNames()`, `middleware(...)` / `middlewares()`, `supports()`, `matchPath()`.
+- `RouteCollection`: `add()`, `all()`, `get()`, `count()`, `isEmpty()`.
+- `RouteMatcher`: `match(RouteCollection, string, string): ?array`.
+- `Request`: see HTTP request section.
+- `Response` / `JsonResponse`: see HTTP response section.
 
 ## Running tests
 
@@ -208,14 +265,10 @@ vendor/bin/phpunit
 
 ## Current limitations
 
-This release deliberately does **not** include:
+Not included (see [ROADMAP.md](ROADMAP.md)):
 
-- Request or Response abstractions
-- Middleware
-- Dependency injection or a service container
-- Application/kernel lifecycle, route groups or named routes
-- Templates, database/ORM, sessions, cookies or authentication
-- Route caching and automatic OPTIONS responses
-- A full CLI kernel (`run()` is only a small HTTP entry point)
-
-These may be considered in future releases.
+- Database/ORM, authentication, sessions or cookies.
+- Template engines or view layers.
+- Dependency injection containers, service providers or event buses.
+- Named routes, inline regex constraints and route caching.
+- Full CLI kernel or automatic OPTIONS responses.

@@ -16,6 +16,11 @@ use Kurama\Exceptions\RouteNotFoundException;
  */
 final class Router
 {
+    private string $groupPrefix = '';
+
+    /** @var list<callable> */
+    private array $groupMiddleware = [];
+
     public function __construct(
         private readonly RouteCollection $routes = new RouteCollection(),
         private readonly RouteMatcher $matcher = new RouteMatcher(),
@@ -79,10 +84,39 @@ final class Router
             $normalized[] = strtoupper(trim($method));
         }
 
+        $pattern = $this->groupPrefix === ''
+            ? $pattern
+            : '/' . $this->groupPrefix . '/' . ltrim($pattern, '/');
+
         $route = new Route($normalized, $pattern, $handler);
+        if ($this->groupMiddleware !== []) {
+            $route->middleware(...$this->groupMiddleware);
+        }
         $this->routes->add($route);
 
         return $route;
+    }
+
+    /**
+     * Register routes under a shared prefix and/or middleware.
+     *
+     * @param array{prefix?: string, middleware?: list<callable>} $attributes
+     */
+    public function group(array $attributes, callable $callback): void
+    {
+        $previousPrefix = $this->groupPrefix;
+        $previousMiddleware = $this->groupMiddleware;
+
+        $prefix = trim((string) ($attributes['prefix'] ?? ''), '/');
+        $this->groupPrefix = trim($this->groupPrefix . '/' . $prefix, '/');
+        $this->groupMiddleware = array_merge($previousMiddleware, (array) ($attributes['middleware'] ?? []));
+
+        try {
+            $callback($this);
+        } finally {
+            $this->groupPrefix = $previousPrefix;
+            $this->groupMiddleware = $previousMiddleware;
+        }
     }
 
     public function routes(): RouteCollection
@@ -144,23 +178,33 @@ final class Router
     }
 
     /**
-     * Find the first matching route and return its handler result.
+     * Resolve a normalized request without executing its handler.
      *
-     * @throws RouteNotFoundException when no path matches
-     * @throws \Kurama\Exceptions\MethodNotAllowedException when the path exists but the method is unsupported
+     * @return array{route: Route, parameters: array<string, string>}|null
      */
-    public function dispatch(string $method, string $uri): mixed
+    public function resolve(string $method, string $uri): ?array
     {
         $method = strtoupper(trim($method));
         if ($method === '') {
             throw new InvalidArgumentException('HTTP method must not be empty.');
         }
 
-        $path = self::normalizePath($uri);
-        $result = $this->matcher->match($this->routes, $method, $path);
+        return $this->matcher->match($this->routes, $method, self::normalizePath($uri));
+    }
+
+    /**
+     * Find the first matching route and return its handler result.
+     *
+     * @throws RouteNotFoundException when no path matches
+     * @throws MethodNotAllowedException when the path exists but the method is unsupported
+     */
+    public function dispatch(string $method, string $uri): mixed
+    {
+        $method = strtoupper(trim($method));
+        $result = $this->resolve($method, $uri);
 
         if ($result === null) {
-            throw new RouteNotFoundException($method, $path);
+            throw new RouteNotFoundException($method, self::normalizePath($uri));
         }
 
         return call_user_func_array($result['route']->handler(), array_values($result['parameters']));
@@ -170,7 +214,7 @@ final class Router
      * Drop query strings and fragments, enforce a leading slash and ignore
      * trailing slashes (except for the root path).
      */
-    private static function normalizePath(string $uri): string
+    public static function normalizePath(string $uri): string
     {
         $path = parse_url($uri, PHP_URL_PATH);
         $path = is_string($path) && $path !== '' ? $path : '/';

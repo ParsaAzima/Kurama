@@ -7,6 +7,7 @@ namespace Kurama\Tests;
 use InvalidArgumentException;
 use Kurama\Exceptions\MethodNotAllowedException;
 use Kurama\Exceptions\RouteNotFoundException;
+use Kurama\Request;
 use Kurama\Router;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -289,6 +290,32 @@ final class RouterTest extends TestCase
         } catch (MethodNotAllowedException $exception) {
             self::assertSame(['GET'], $exception->allowedMethods());
         }
+    }
+
+    public function testGroupPrefix(): void
+    {
+        $router = new Router();
+        $router->group(['prefix' => '/api'], static function (Router $router): void {
+            $router->get('/ping', static fn (): string => 'pong');
+        });
+
+        self::assertSame('pong', $router->dispatch('GET', '/api/ping'));
+        self::assertSame('/api/ping', $router->routes()->get(0)?->pattern());
+    }
+
+    public function testGroupAndRouteMiddlewareAreAttached(): void
+    {
+        $groupMiddleware = static fn (Request $request, callable $next): mixed => $next($request);
+        $routeMiddleware = static fn (Request $request, callable $next): mixed => $next($request);
+
+        $router = new Router();
+        $router->group(['prefix' => '/api', 'middleware' => [$groupMiddleware]], static function (Router $router) use ($routeMiddleware): void {
+            $router->get('/item', static fn (): string => 'ok')->middleware($routeMiddleware);
+        });
+
+        $route = $router->routes()->get(0);
+        self::assertNotNull($route);
+        self::assertSame([$groupMiddleware, $routeMiddleware], $route->middlewares());
     }
 
     protected function tearDown(): void
