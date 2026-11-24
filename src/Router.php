@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kurama;
 
 use InvalidArgumentException;
+use Kurama\Exceptions\MethodNotAllowedException;
 use Kurama\Exceptions\RouteNotFoundException;
 
 /**
@@ -87,6 +88,59 @@ final class Router
     public function routes(): RouteCollection
     {
         return $this->routes;
+    }
+
+    /**
+     * Convenience HTTP entry point: dispatch, encode and emit the result.
+     *
+     * This is the only method that touches superglobals and sends output.
+     * Pass $method/$uri explicitly for testing or custom entry points;
+     * null values are read from $_SERVER.
+     */
+    public function run(?string $method = null, ?string $uri = null): void
+    {
+        $method ??= (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        $uri ??= (string) ($_SERVER['REQUEST_URI'] ?? '/');
+
+        try {
+            $result = $this->dispatch($method, $uri);
+        } catch (RouteNotFoundException $exception) {
+            http_response_code(404);
+            echo $exception->getMessage();
+
+            return;
+        } catch (MethodNotAllowedException $exception) {
+            http_response_code(405);
+            if (!headers_sent()) {
+                header('Allow: ' . implode(', ', $exception->allowedMethods()));
+            }
+            echo $exception->getMessage();
+
+            return;
+        } catch (InvalidArgumentException $exception) {
+            http_response_code(500);
+            echo $exception->getMessage();
+
+            return;
+        }
+
+        if (!headers_sent()) {
+            $isJson = is_array($result) || $result instanceof \JsonSerializable || $result instanceof \stdClass;
+            header($isJson
+                ? 'Content-Type: application/json; charset=UTF-8'
+                : 'Content-Type: text/html; charset=UTF-8');
+        }
+
+        if (is_array($result) || $result instanceof \JsonSerializable || $result instanceof \stdClass) {
+            echo json_encode(
+                $result,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+            );
+
+            return;
+        }
+
+        echo is_scalar($result) || $result instanceof \Stringable ? (string) $result : '';
     }
 
     /**

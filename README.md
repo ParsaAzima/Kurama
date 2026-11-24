@@ -49,6 +49,37 @@ echo $router->dispatch(
 
 A runnable version lives in `examples/basic.php`.
 
+## Running the framework
+
+Point your web server at `public/index.php`, or use PHP's built-in server:
+
+```bash
+composer serve
+# http://127.0.0.1:8000/
+# http://127.0.0.1:8000/users/42
+```
+
+The front controller registers routes and calls `run()`:
+
+```php
+$router = new Router();
+$router->get('/users/{id}', fn (string $id) => ['id' => $id]);
+
+$router->run();
+```
+
+`run()` reads `$_SERVER['REQUEST_METHOD']` and `$_SERVER['REQUEST_URI']` by default, dispatches the request, sends a `Content-Type` header, and echoes the result. You can pass the method and URI explicitly — useful for testing or custom entry points:
+
+```php
+$router->run('GET', '/users/42');
+```
+
+`run()` is a thin convenience adapter on top of `dispatch()`:
+
+- It sets status `404` for a missing route and `405` (with an `Allow` header) for a method mismatch.
+- Array, `JsonSerializable` and `stdClass` results are encoded as JSON; scalars are echoed as text.
+- `dispatch()` remains side-effect free and still returns the handler result.
+
 ## HTTP methods
 
 Registration helpers:
@@ -145,6 +176,7 @@ Invalid route definitions (bad pattern, unsupported method, non-callable handler
 | `match(array\|string $methods, string $pattern, mixed $handler): Route` | Register a route for one or more methods. |
 | `routes(): RouteCollection` | Inspect registered routes. |
 | `dispatch(string $method, string $uri): mixed` | Match and execute; returns the handler result. |
+| `run(?string $method = null, ?string $uri = null): void` | Dispatch and emit the result for a real HTTP request. |
 
 ### `Kurama\Route`
 
@@ -182,5 +214,6 @@ This release deliberately does **not** include:
 - Application/kernel lifecycle, route groups or named routes
 - Templates, database/ORM, sessions, cookies or authentication
 - Route caching and automatic OPTIONS responses
+- A full CLI kernel (`run()` is only a small HTTP entry point)
 
 These may be considered in future releases.

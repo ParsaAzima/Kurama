@@ -290,6 +290,61 @@ final class RouterTest extends TestCase
             self::assertSame(['GET'], $exception->allowedMethods());
         }
     }
+
+    protected function tearDown(): void
+    {
+        http_response_code(200);
+    }
+
+    public function testRunEchoesHandlerResult(): void
+    {
+        $router = new Router();
+        $router->get('/', static fn (): string => 'Hello from Kurama!');
+
+        ob_start();
+        $router->run('GET', '/');
+        $output = (string) ob_get_clean();
+
+        self::assertSame('Hello from Kurama!', $output);
+        self::assertSame(200, http_response_code());
+    }
+
+    public function testRunEncodesArrayResultsAsJson(): void
+    {
+        $router = new Router();
+        $router->get('/users/me', static fn (): array => ['id' => 7, 'name' => 'Kurama']);
+
+        ob_start();
+        $router->run('GET', '/users/me');
+        $output = (string) ob_get_clean();
+
+        self::assertSame(['id' => 7, 'name' => 'Kurama'], json_decode($output, true));
+    }
+
+    public function testRunSends404ForMissingRoute(): void
+    {
+        $router = new Router();
+
+        ob_start();
+        $router->run('GET', '/missing');
+        $output = (string) ob_get_clean();
+
+        self::assertSame(404, http_response_code());
+        self::assertStringContainsString('No route found', $output);
+    }
+
+    public function testRunSends405ForMethodMismatch(): void
+    {
+        $router = new Router();
+        $router->get('/users', static fn (): string => 'list');
+
+        ob_start();
+        $router->run('POST', '/users');
+        $output = (string) ob_get_clean();
+
+        self::assertSame(405, http_response_code());
+        self::assertStringContainsString('GET', $output);
+    }
 }
 
 final class InvokableHandler
