@@ -4,6 +4,8 @@ Kurama is a lightweight, standalone PHP micro router inspired by Flask's routing
 
 This release is **Kurama Router v0.1.0** — HTTP routing only.
 
+See [ROADMAP.md](ROADMAP.md) for planned versions and design boundaries.
+
 ## Requirements
 
 - PHP 8.3 or newer
