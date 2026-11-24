@@ -373,7 +373,7 @@ use Kurama\Exceptions\MethodNotAllowedException;
 - Paths with a different segment count are rejected before PCRE runs.
 - The container caches argument and constructor plans; request paths are normalized once.
 - No provider boot phase or event bus in the request path.
-- `examples/benchmark.php` runs a small static/dynamic dispatch loop so you can measure throughput on your machine.
+- `examples/benchmark.php` runs static/dynamic and 201-route dispatch loops. See [docs/performance.md](docs/performance.md) for a comparison with FastRoute, Slim 4 and Laravel 11.
 
 ## Running tests
 

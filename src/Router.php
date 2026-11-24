@@ -18,10 +18,10 @@ final class Router
 {
     private const ALL_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'];
 
-    /** @var array<string, array<string, list<int>>> */
+    /** @var array<string, array<string, list<array{0: int, 1: Route}>>> */
     private array $staticIndex = [];
 
-    /** @var array<string, list<int>> */
+    /** @var array<string, list<array{0: int, 1: Route}>> */
     private array $dynamicIndex = [];
 
     private string $groupPrefix = '';
@@ -103,11 +103,12 @@ final class Router
         $this->routes->add($route);
 
         $position = count($this->routes) - 1;
+        $entry = [$position, $route];
         foreach ($this->indexMethods($route->methods()) as $method) {
             if ($route->parameterNames() === []) {
-                $this->staticIndex[$method][$route->pattern()][] = $position;
+                $this->staticIndex[$method][$route->pattern()][] = $entry;
             } else {
-                $this->dynamicIndex[$method][] = $position;
+                $this->dynamicIndex[$method][] = $entry;
             }
         }
 
@@ -223,25 +224,24 @@ final class Router
      */
     public function resolve(string $method, string $uri): ?array
     {
-        $method = strtoupper(trim($method));
-        if ($method === '') {
-            throw new InvalidArgumentException('HTTP method must not be empty.');
+        // ctype_upper() is cheaper than trim()+strtoupper() for normal methods.
+        if ($method === '' || !ctype_upper($method)) {
+            $method = strtoupper(trim($method));
+            if ($method === '') {
+                throw new InvalidArgumentException('HTTP method must not be empty.');
+            }
         }
 
         $path = self::normalizePath($uri);
 
         // Fast path: exact static lookup, then only earlier dynamic routes.
-        $staticPositions = $this->staticIndex[$method][$path] ?? [];
-        $dynamicPositions = $this->dynamicIndex[$method] ?? [];
-        $cutoff = $staticPositions === [] ? PHP_INT_MAX : $staticPositions[0];
+        $staticEntries = $this->staticIndex[$method][$path] ?? [];
+        $dynamicEntries = $this->dynamicIndex[$method] ?? [];
+        $cutoff = $staticEntries === [] ? PHP_INT_MAX : $staticEntries[0][0];
 
-        foreach ($dynamicPositions as $position) {
+        foreach ($dynamicEntries as [$position, $route]) {
             if ($position >= $cutoff) {
                 break;
-            }
-            $route = $this->routes->get($position);
-            if ($route === null) {
-                continue;
             }
             $parameters = $route->matchPath($path);
             if ($parameters !== null) {
@@ -249,11 +249,8 @@ final class Router
             }
         }
 
-        foreach ($staticPositions as $position) {
-            $route = $this->routes->get($position);
-            if ($route !== null) {
-                return ['route' => $route, 'parameters' => []];
-            }
+        foreach ($staticEntries as [, $route]) {
+            return ['route' => $route, 'parameters' => []];
         }
 
         // Slow path is only reached when no method-compatible route matched:
@@ -313,6 +310,16 @@ final class Router
 
     public static function normalizePath(string $uri): string
     {
+        // Avoid parse_url() for the overwhelmingly common clean path case.
+        if (
+            $uri !== ''
+            && $uri[0] === '/'
+            && strpbrk($uri, '?#') === false
+            && ($uri === '/' || $uri[strlen($uri) - 1] !== '/')
+        ) {
+            return $uri;
+        }
+
         $path = parse_url($uri, PHP_URL_PATH);
         $path = is_string($path) && $path !== '' ? $path : '/';
 
