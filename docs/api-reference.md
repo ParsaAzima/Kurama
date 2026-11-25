@@ -24,6 +24,7 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
 | `runConsole(?array $argv = null): int` | Run the CLI kernel and return an exit code. |
 | `handlePsr(object $psrRequest, object $responseFactory): object` | Handle a PSR-7-like request and return a PSR-7-like response. |
+| `prepareForRequest(): void` | Reset per-request state in a long-running worker. |
 | `console` (public readonly `Kurama\Console\Console`) | Console kernel. |
 | `config(string $key, mixed $default = null)` / `env(...)` | Read configuration / environment values. |
 | `validate(array $data, array $rules): array` | Validate and return validated fields, or throw `ValidationException`. |
@@ -61,6 +62,7 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
 | `runConsole(?array $argv = null): int` | Run the CLI kernel and return an exit code. |
 | `handlePsr(object $psrRequest, object $responseFactory): object` | Handle a PSR-7-like request and return a PSR-7-like response. |
+| `prepareForRequest(): void` | Reset per-request state in a long-running worker. |
 | `console` (public readonly `Kurama\Console\Console`) | Console kernel. |
 | `resolve(string $method, string $uri): ?array` | `['route' => Route, 'parameters' => array]` or `null`. |
 | `dispatch(string $method, string $uri): mixed` | Execute handler, return raw result. |
@@ -124,6 +126,16 @@ See [response.md](response.md) for details.
 | `__construct(string $content = '')` | Create with initial content. |
 | `write(string $data): self` | Append data. |
 | `__toString(): string` | Current content. |
+
+## Worker server
+
+See [server.md](server.md).
+
+| Class | Key members |
+| --- | --- |
+| `WorkerServer` | `run(): int`, `stop(): void`; constructor takes `Application`, host, port and workers. |
+| `RequestParser` | `parse(string $buffer, array $server): ?array`. |
+| `ResponseWriter` | `write(Response $response, bool $keepAlive = true): string`. |
 
 ## CLI kernel
 

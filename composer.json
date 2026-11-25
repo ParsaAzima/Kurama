@@ -24,7 +24,8 @@
         "test": "phpunit",
         "serve": "php -S 127.0.0.1:8000 -t public public/index.php",
         "bench": "php examples/benchmark.php",
-        "console": "php bin/kurama"
+        "console": "php bin/kurama",
+        "serve:worker": "php bin/kurama serve"
     },
     "config": {
         "sort-packages": true

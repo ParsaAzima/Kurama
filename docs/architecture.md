@@ -41,6 +41,7 @@ The core has no knowledge of superglobals, HTTP responses, middleware or control
 | `Kurama\ProviderDiscovery` | Reads providers from composer extras. |
 | `Kurama\Events\Dispatcher` | Synchronous in-process event bus. |
 | `Kurama\Console\Console` | CLI kernel with commands and exit codes. |
+| `Kurama\Server\WorkerServer` | Long-running event loop and optional fork workers. |
 
 You can use the router without the application layer, and the application layer without adding any container or provider.
 

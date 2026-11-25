@@ -181,6 +181,13 @@ final class Router
         return $this->routes;
     }
 
+    /** Clear per-request memoization between worker iterations. */
+    public function forgetMemo(): void
+    {
+        $this->lastMatch = null;
+        $this->lastHandler = null;
+    }
+
     public function named(string $name): ?Route
     {
         return $this->routes->findByName($name);

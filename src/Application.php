@@ -533,6 +533,13 @@ class Application
         return $response;
     }
 
+    /** Reset per-request state before handling another request in a worker. */
+    public function prepareForRequest(): void
+    {
+        $this->session->reset();
+        $this->router->forgetMemo();
+    }
+
     public function run(?Request $request = null): void
     {
         $response = $this->handle($request ?? Request::capture());

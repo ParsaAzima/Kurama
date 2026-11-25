@@ -25,6 +25,7 @@ php bin/kurama list
 | `route:list` | List registered methods, patterns and names. |
 | `cache:routes` | Write the route cache file. |
 | `cache:clear` | Delete the route cache file. |
+| `serve` | Run the long-running worker server (see [server.md](server.md)). |
 
 ## Custom commands
 

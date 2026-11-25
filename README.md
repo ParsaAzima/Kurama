@@ -331,6 +331,16 @@ $psrResponse = $app->handlePsr($psrRequest, $responseFactory);
 
 See [docs/interoperability.md](docs/interoperability.md).
 
+## Long-running worker
+
+```bash
+composer serve:worker
+# or
+php bin/kurama serve --host=127.0.0.1 --port=8000 --workers=1
+```
+
+A cooperative `stream_select` event loop handles concurrent connections; `--workers` forks processes when `pcntl` is available. The application stays warm while per-request session/router state is reset. See [docs/server.md](docs/server.md).
+
 ## Templates
 
 Kurama ships with a tiny native-PHP template engine — no Twig/Blade dependency.

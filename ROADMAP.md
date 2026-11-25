@@ -29,7 +29,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.11.0` | Interoperability and hardening | Released |
 | `v0.12.0` | Remaining weaknesses | Released |
 | `v0.13.0` | Advanced events and providers | Released |
-| `v0.14.0` | API freeze and stable release | Next |
+| `v0.14.0` | Long-running worker server | Released |
+| `v0.15.0` | API freeze and stable release | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -148,7 +149,15 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - `ServiceProvider::tags()` and `Application::tagged()` for tagged container services.
 - `queueEvent()` helper and `app.terminated` flush after `run()`.
 
-## v0.14.0 — API freeze and stable release (next)
+## v0.14.0 — Long-running worker server (released)
+
+- `Kurama\Server\WorkerServer` with `stream_select` event loop and keep-alive connections.
+- Incremental HTTP parser and response serializer.
+- Optional `pcntl` fork workers; graceful single-process fallback.
+- `Application::prepareForRequest()` resets session and router memo between iterations.
+- `php bin/kurama serve` and `composer serve:worker`.
+
+## v0.15.0 — API freeze and stable release (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 

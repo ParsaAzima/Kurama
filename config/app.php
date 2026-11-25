@@ -27,4 +27,7 @@ return [
 
     'options.auto' => true,
     'events.defer' => false,
+    'server.host' => '127.0.0.1',
+    'server.port' => 8000,
+    'server.workers' => 1,
 ];

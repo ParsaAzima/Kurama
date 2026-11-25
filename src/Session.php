@@ -65,6 +65,15 @@ final class Session
         return $this->started;
     }
 
+    /** Detach the session between requests in a long-running worker. */
+    public function reset(): void
+    {
+        if ($this->native && session_status() === PHP_SESSION_ACTIVE) {
+            @session_write_close();
+        }
+        $this->started = false;
+    }
+
     public function id(): string
     {
         $this->start();
