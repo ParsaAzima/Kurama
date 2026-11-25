@@ -25,7 +25,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.7.0` | Phase 4 utilities | Released |
 | `v0.8.0` | Providers, auto-discovery and events | Released |
 | `v0.9.0` | Route caching and unnamed URL generation | Released |
-| `v0.10.0` | Developer tooling (dev-only) | Next |
+| `v0.10.0` | CLI kernel and automatic OPTIONS | Released |
+| `v0.11.0` | Developer tooling (dev-only) | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -113,7 +114,15 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - `url()` accepts route names, path patterns and `Class@method` handlers; `urlForHandler()` added.
 - The in-memory dispatch index and memo remain active after loading a cache.
 
-## v0.10.0 — Developer tooling (next)
+## v0.10.0 — CLI kernel and automatic OPTIONS (released)
+
+- `Kurama\Console\Console` kernel with `list`, `help`, `version`, `route:list` and `cache:routes`.
+- Custom commands extend `Kurama\Console\Command`; `Input` parses positional args and long options.
+- `Application::runConsole()` and `bin/kurama` entry point.
+- Automatic OPTIONS responses: 204 + `Allow` when a path exists without an explicit OPTIONS route.
+- `options.auto` config flag; explicit OPTIONS routes still win.
+
+## v0.11.0 — Developer tooling (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 

@@ -12,8 +12,8 @@ Kurama is a router-first micro framework. The following are intentionally absent
 - Console kernels and a full event subsystem with queued/async listeners; the event bus is synchronous and in-process.
 - PSR-7 / PSR-15 interoperability. The style is inspired by Slim, but the value objects are local and dependency-free.
 - Global helper functions such as `app()` or `url_for()`; use the instance methods instead.
-- Automatic OPTIONS responses. Route caching and URL generation for unnamed routes are included.
-- Full CLI tooling; `composer serve` and `composer bench` are development conveniences only.
+- Nothing left from the original Phase 1–4 limitation list; CLI and automatic OPTIONS are included.
+- Threaded/async request handling and long-running worker servers; Kurama targets standard PHP request lifecycle and CLI scripts.
 
 ## Deliberate simplifications
 

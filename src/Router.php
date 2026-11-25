@@ -276,11 +276,19 @@ final class Router
 
             return;
         } catch (MethodNotAllowedException $exception) {
-            http_response_code(405);
-            if (!headers_sent()) {
-                header('Allow: ' . implode(', ', $exception->allowedMethods()));
+            $allowed = $exception->allowedMethods();
+            if (!in_array('OPTIONS', $allowed, true)) {
+                $allowed[] = 'OPTIONS';
             }
-            echo $exception->getMessage();
+
+            $isOptions = strtoupper(trim($method ?? (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'))) === 'OPTIONS';
+            http_response_code($isOptions ? 204 : 405);
+            if (!headers_sent()) {
+                header('Allow: ' . implode(', ', $allowed));
+            }
+            if (!$isOptions) {
+                echo $exception->getMessage();
+            }
 
             return;
         } catch (InvalidArgumentException $exception) {

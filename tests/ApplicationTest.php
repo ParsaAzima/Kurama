@@ -404,6 +404,48 @@ final class ApplicationTest extends TestCase
         }
     }
 
+    public function testAutomaticOptionsResponse(): void
+    {
+        $app = AppFactory::create(['debug' => true]);
+        $app->get('/users', static fn (): Response => Response::text('list'));
+        $app->post('/users', static fn (): Response => Response::text('create'));
+
+        $response = $app->handle(new Request('OPTIONS', '/users'));
+
+        self::assertSame(204, $response->getStatus());
+        self::assertSame('', $response->getContent());
+        self::assertSame('GET, POST, OPTIONS', $response->getHeader('Allow'));
+    }
+
+    public function testExplicitOptionsRouteWins(): void
+    {
+        $app = AppFactory::create(['debug' => true]);
+        $app->get('/users', static fn (): Response => Response::text('list'));
+        $app->options('/users', static fn (): Response => Response::text('explicit'));
+
+        $response = $app->handle(new Request('OPTIONS', '/users'));
+
+        self::assertSame(200, $response->getStatus());
+        self::assertSame('explicit', $response->getContent());
+    }
+
+    public function testAutomaticOptionsCanBeDisabled(): void
+    {
+        $app = AppFactory::create(['debug' => true, 'options.auto' => false]);
+        $app->get('/users', static fn (): Response => Response::text('list'));
+
+        $response = $app->handle(new Request('OPTIONS', '/users'));
+
+        self::assertSame(405, $response->getStatus());
+    }
+
+    public function testOptionsOnUnknownPathIs404(): void
+    {
+        $app = AppFactory::create(['debug' => true]);
+
+        self::assertSame(404, $app->handle(new Request('OPTIONS', '/missing'))->getStatus());
+    }
+
     public function testRunUsesExplicitMethodAndUri(): void
     {
         $app = new Application();

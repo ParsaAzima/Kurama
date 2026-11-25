@@ -15,6 +15,7 @@ Start here:
 | Dependency injection | [dependency-injection.md](dependency-injection.md) |
 | Service providers and auto-discovery | [service-providers.md](service-providers.md) |
 | Events | [events.md](events.md) |
+| CLI kernel | [cli.md](cli.md) |
 | Configuration | [configuration.md](configuration.md) |
 | Environment variables | [environment.md](environment.md) |
 | Validation | [validation.md](validation.md) |

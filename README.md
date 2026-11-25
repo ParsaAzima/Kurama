@@ -125,7 +125,7 @@ $app->any($pattern, $handler);
 $app->match(['GET', 'POST'], $pattern, $handler);
 ```
 
-`any()` accepts every supported method. HEAD requests implicitly fall back to a GET route unless an explicit HEAD route is registered earlier. OPTIONS must be registered explicitly.
+`any()` accepts every supported method. HEAD requests implicitly fall back to a GET route unless an explicit HEAD route is registered earlier. An explicit OPTIONS route wins; otherwise a matching path automatically answers OPTIONS with 204 and an `Allow` header (`options.auto`, default true).
 
 ## Route parameters
 
@@ -307,6 +307,17 @@ Providers can also be listed in `config/app.php` under `providers`, or auto-disc
 
 See [docs/service-providers.md](docs/service-providers.md) and [docs/events.md](docs/events.md).
 
+## CLI
+
+```bash
+composer console -- list
+composer console -- route:list
+composer console -- help cache:routes
+composer console -- version
+```
+
+Custom commands extend `Kurama\Console\Command` and are registered with `$app->console()->command(new MyCommand())`. `runConsole($argv)` returns an exit code; see [docs/cli.md](docs/cli.md).
+
 ## Templates
 
 Kurama ships with a tiny native-PHP template engine — no Twig/Blade dependency.
@@ -471,6 +482,5 @@ Not included (see [ROADMAP.md](ROADMAP.md)):
 - Database/ORM or authentication (session, cookie, CSRF and logging utilities are included).
 - Third-party template engines and template caching (the built-in native-PHP engine with layouts is included).
 - Container tags, compiler passes and async queued events. Providers, composer auto-discovery and a synchronous event bus are included.
-- Automatic OPTIONS responses (route caching and unnamed-route URL generation are included).
-- Full CLI kernel or automatic OPTIONS responses.
+- Threaded/async request handling and long-running worker servers.
 - PSR-7 / PSR-15 interoperability (the style is inspired by Slim, not compatible with its contracts).

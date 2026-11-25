@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use Kurama\Exceptions\HttpException;
 use Kurama\Exceptions\MethodNotAllowedException;
 use Kurama\Exceptions\RouteNotFoundException;
+use Kurama\Console\Console;
 use Kurama\Contracts\ServiceProviderInterface;
 use Kurama\Events\Dispatcher;
 use Kurama\Exceptions\ValidationException;
@@ -36,6 +37,8 @@ class Application
     public readonly Csrf $csrf;
 
     public readonly Logger $logger;
+
+    public readonly Console $console;
 
     private readonly string $basePath;
 
@@ -98,6 +101,9 @@ class Application
         $this->logger = new Logger($logPath);
 
         $this->registerCoreBindings();
+        $this->console = new Console($this);
+        $this->container->instance(Console::class, $this->console);
+        $this->container->instance('console', $this->console);
 
         $providers = (array) $this->configuration->get('providers', []);
         if ((bool) $this->configuration->get('discovery.enabled', true)) {
@@ -361,6 +367,16 @@ class Application
             }
 
             $response = $next($request);
+        } catch (MethodNotAllowedException $exception) {
+            if ($request->isMethod('OPTIONS') && $this->config('options.auto', true)) {
+                $allowed = $exception->allowedMethods();
+                if (!in_array('OPTIONS', $allowed, true)) {
+                    $allowed[] = 'OPTIONS';
+                }
+                $response = Response::make('', 204, ['Allow' => implode(', ', $allowed)]);
+            } else {
+                $response = $this->renderError($exception, $request);
+            }
         } catch (Throwable $exception) {
             $response = $this->renderError($exception, $request);
         }
@@ -376,6 +392,12 @@ class Application
         $response = $this->handle($request ?? Request::capture());
         $response->send();
         $this->events()->dispatch('app.terminated', $this, $response);
+    }
+
+    /** Run the CLI kernel and return an exit code. */
+    public function runConsole(?array $argv = null): int
+    {
+        return $this->console->run($argv);
     }
 
     private function registerCoreBindings(): void

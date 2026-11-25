@@ -22,6 +22,8 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `urlFor(string $target, array $params = []): string` | Alias of `url()`; accepts names, patterns or `Class@method`. |
 | `urlForHandler(mixed $handler, array $params = []): string` | Generate a URL from a handler. |
 | `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
+| `runConsole(?array $argv = null): int` | Run the CLI kernel and return an exit code. |
+| `console` (public readonly `Kurama\Console\Console`) | Console kernel. |
 | `config(string $key, mixed $default = null)` / `env(...)` | Read configuration / environment values. |
 | `validate(array $data, array $rules): array` | Validate and return validated fields, or throw `ValidationException`. |
 | `events(): Dispatcher` / `listen()` | Access the event bus / register a listener. |
@@ -52,6 +54,8 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `urlFor(string $target, array $params = []): string` | Alias of `url()`; accepts names, patterns or `Class@method`. |
 | `urlForHandler(mixed $handler, array $params = []): string` | Generate a URL from a handler. |
 | `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
+| `runConsole(?array $argv = null): int` | Run the CLI kernel and return an exit code. |
+| `console` (public readonly `Kurama\Console\Console`) | Console kernel. |
 | `resolve(string $method, string $uri): ?array` | `['route' => Route, 'parameters' => array]` or `null`. |
 | `dispatch(string $method, string $uri): mixed` | Execute handler, return raw result. |
 | `run(?string $method = null, ?string $uri = null): void` | Standalone HTTP adapter. |
@@ -114,6 +118,16 @@ See [response.md](response.md) for details.
 | `__construct(string $content = '')` | Create with initial content. |
 | `write(string $data): self` | Append data. |
 | `__toString(): string` | Current content. |
+
+## CLI kernel
+
+See [cli.md](cli.md).
+
+| Class | Key members |
+| --- | --- |
+| `Console` | `command()`, `commandNamed()`, `commands()`, `run()`, `output()`, `error()`, `application()`. |
+| `Command` | `name()`, `description()`, `handle(Input, Console): int`. |
+| `Input` | `fromArgv()`, `command()`, `arguments()`, `argument()`, `option()`, `hasOption()`, `options()`. |
 
 ## Route caching
 

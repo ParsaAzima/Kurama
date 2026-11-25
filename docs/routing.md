@@ -23,7 +23,7 @@ $app->match(['GET', 'POST'], '/path', $handler);
 ### HEAD and OPTIONS
 
 - A `HEAD` request falls back to an earlier matching `GET` route unless an explicit `HEAD` route matches first.
-- `OPTIONS` routes must be registered explicitly. Kurama does not generate automatic OPTIONS responses.
+- An explicit `OPTIONS` route always wins. Otherwise, a path with at least one registered method automatically answers `OPTIONS` with **204** and an `Allow` header containing the registered methods plus `OPTIONS`. Disable with `options.auto => false`; a path with no routes still returns 404.
 - The `Allow` header on a 405 response lists the methods registered for matching paths; implicit HEAD is not added.
 
 ## URI normalization
