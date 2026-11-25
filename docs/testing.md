@@ -10,7 +10,7 @@ composer test
 # or: vendor/bin/phpunit
 ```
 
-Configuration lives in `phpunit.xml`. The suite currently has 166 tests and 323 assertions.
+Configuration lives in `phpunit.xml`. The suite currently has 172 tests and 337 assertions.
 
 ## Test files
 
@@ -33,6 +33,7 @@ Configuration lives in `phpunit.xml`. The suite currently has 166 tests and 323 
 | `tests/LoggerTest.php` | File creation, levels, context encoding. |
 | `tests/DispatcherTest.php` | Priorities, wildcards, `once()`, `has()` / `forget()`. |
 | `tests/ProviderDiscoveryTest.php` | Composer extra parsing and deduplication. |
+| `tests/RouteCacheTest.php` | Export/load, names, middleware, closure rejection. |
 
 ## Testing an application without sending output
 

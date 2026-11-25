@@ -121,3 +121,37 @@ $router->run('GET', '/users/42');                       // standalone HTTP adapt
 ```
 
 `Router::run()` reads `$_SERVER` when arguments are omitted, sets status/headers and echoes the result. It is deliberately thin; use `Application` for the full HTTP layer.
+
+## URL generation without route names
+
+`url()` accepts three kinds of targets:
+
+```php
+$app->url('user.show', ['id' => 42]);                 // named route
+$app->url('/users/{id:\d+}', ['id' => 42]);          // path pattern
+$app->url(UserController::class . '@show', ['id' => 42]); // handler
+$app->urlForHandler([UserController::class, 'show'], ['id' => 42]);
+```
+
+When a string starts with `/`, Kurama looks for a route with the same normalized pattern. A string containing `@` is matched against registered handlers. Missing targets or parameters throw `InvalidArgumentException`.
+
+## Route caching
+
+Enable production route caching in config:
+
+```php
+$app = AppFactory::create([
+    'route.cache.enabled' => true,
+    'route.cache.path' => __DIR__ . '/../storage/cache/routes.php',
+]);
+
+$app->loadRoutes(function (Application $app): void {
+    $app->get('/users/{id:\d+}', [UserController::class, 'show'])->name('user.show');
+});
+```
+
+The first request registers the routes and writes a plain PHP file. Later requests load that file and skip the callback. `Application::routesFromCache()` and `cacheRoutes()` are available directly.
+
+Cacheable handlers must be function names, `Class@method`, `[Class::class, 'method']` or invokable classes. **Closures and anonymous classes cannot be cached** and throw `InvalidArgumentException`; use class-based handlers when caching is enabled. Middleware follows the same rule.
+
+The in-memory static dispatch index and last-request memo remain active after loading a cache, so caching does not reduce runtime throughput.

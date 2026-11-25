@@ -24,7 +24,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.6.0` | Phase 3 application features | Released |
 | `v0.7.0` | Phase 4 utilities | Released |
 | `v0.8.0` | Providers, auto-discovery and events | Released |
-| `v0.9.0` | Developer tooling (dev-only) | Next |
+| `v0.9.0` | Route caching and unnamed URL generation | Released |
+| `v0.10.0` | Developer tooling (dev-only) | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -104,7 +105,15 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - `Kurama\Events\Dispatcher` with priorities, wildcards and `once()`.
 - Opt-in: boot runs once, event dispatch is skipped when no listeners exist.
 
-## v0.9.0 — Developer tooling (next)
+## v0.9.0 — Route caching and unnamed URL generation (released)
+
+- `RouteCache` exports/imports route definitions to a plain PHP file.
+- `Application::loadRoutes()`, `routesFromCache()` and `cacheRoutes()`.
+- Class-based handlers and middleware are cacheable; closures are rejected with a clear error.
+- `url()` accepts route names, path patterns and `Class@method` handlers; `urlForHandler()` added.
+- The in-memory dispatch index and memo remain active after loading a cache.
+
+## v0.10.0 — Developer tooling (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 

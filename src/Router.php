@@ -170,21 +170,90 @@ final class Router
         return $this->routes->findByName($name);
     }
 
-    /** @param array<string, mixed> $params */
-    public function url(string $name, array $params = []): string
+    /**
+     * Build a URL from a route name, a path pattern or a Class@method handler.
+     *
+     * @param array<string, mixed> $params
+     */
+    public function url(string $target, array $params = []): string
     {
-        $route = $this->named($name);
+        $route = $this->named($target)
+            ?? (str_starts_with($target, '/') ? $this->routeForPattern($target) : null)
+            ?? (str_contains($target, '@') ? $this->routeForHandlerString($target) : null);
+
         if ($route === null) {
-            throw new InvalidArgumentException("Route [{$name}] is not defined.");
+            throw new InvalidArgumentException("Route [{$target}] is not defined.");
         }
 
         return $route->uri($params);
     }
 
     /** Alias for Slim-style `urlFor()`. */
-    public function urlFor(string $name, array $params = []): string
+    public function urlFor(string $target, array $params = []): string
     {
-        return $this->url($name, $params);
+        return $this->url($target, $params);
+    }
+
+    /** @param array<string, mixed> $params */
+    public function urlForHandler(mixed $handler, array $params = []): string
+    {
+        $route = $this->routeForHandler($handler);
+        if ($route === null) {
+            throw new InvalidArgumentException('No route is registered for that handler.');
+        }
+
+        return $route->uri($params);
+    }
+
+    private function routeForPattern(string $pattern): ?Route
+    {
+        $normalized = self::normalizePath($pattern);
+        foreach ($this->routes->all() as $route) {
+            if ($route->pattern() === $normalized) {
+                return $route;
+            }
+        }
+
+        return null;
+    }
+
+    private function routeForHandlerString(string $handler): ?Route
+    {
+        [$class, $method] = explode('@', $handler, 2);
+
+        return $this->routeForHandler([$class, $method]);
+    }
+
+    private function routeForHandler(mixed $handler): ?Route
+    {
+        foreach ($this->routes->all() as $route) {
+            if ($this->handlerMatches($route->handler(), $handler)) {
+                return $route;
+            }
+        }
+
+        return null;
+    }
+
+    private function handlerMatches(mixed $actual, mixed $expected): bool
+    {
+        if ($actual === $expected) {
+            return true;
+        }
+
+        if (is_string($expected) && str_contains($expected, '@')) {
+            $expected = explode('@', $expected, 2);
+        }
+
+        if (is_array($actual) && is_array($expected) && isset($actual[0], $actual[1], $expected[0], $expected[1])) {
+            $actualClass = is_object($actual[0]) ? get_class($actual[0]) : (string) $actual[0];
+            $expectedClass = is_object($expected[0]) ? get_class($expected[0]) : (string) $expected[0];
+
+            return $actualClass === $expectedClass
+                && strcasecmp((string) $actual[1], (string) $expected[1]) === 0;
+        }
+
+        return is_object($actual) && is_object($expected) && get_class($actual) === get_class($expected);
     }
 
     /**

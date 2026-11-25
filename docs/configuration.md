@@ -60,6 +60,8 @@ Dotted keys passed to `load()` are normalized into nested arrays, so `['views.pa
 | `log.path` | Log file location. | `<project root>/storage/logs/app.log` |
 | `providers` | Explicit provider class list. | `[]` |
 | `discovery.enabled` | Read providers from composer extras. | `true` |
+| `route.cache.enabled` | Write/load compiled route definitions. | `false` |
+| `route.cache.path` | Route cache file. | `<project root>/storage/cache/routes.php` |
 
 Other keys are stored untouched and can be used by your own code via `$app->config(...)` or by injecting `Kurama\Config`.
 

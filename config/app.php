@@ -18,4 +18,7 @@ return [
 
     'providers' => [],
     'discovery.enabled' => true,
+
+    'route.cache.enabled' => false,
+    'route.cache.path' => dirname(__DIR__) . '/storage/cache/routes.php',
 ];

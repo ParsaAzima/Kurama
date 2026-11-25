@@ -19,7 +19,9 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `middleware(callable ...$middleware): self` | Add global middleware. |
 | `add(callable ...$middleware): self` | Alias of `middleware()`. |
 | `url(string $name, array $params = []): string` | Build URL from a named route. |
-| `urlFor(string $name, array $params = []): string` | Alias of `url()`. |
+| `urlFor(string $target, array $params = []): string` | Alias of `url()`; accepts names, patterns or `Class@method`. |
+| `urlForHandler(mixed $handler, array $params = []): string` | Generate a URL from a handler. |
+| `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
 | `config(string $key, mixed $default = null)` / `env(...)` | Read configuration / environment values. |
 | `validate(array $data, array $rules): array` | Validate and return validated fields, or throw `ValidationException`. |
 | `events(): Dispatcher` / `listen()` | Access the event bus / register a listener. |
@@ -47,7 +49,9 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `routes(): RouteCollection` | Registered routes. |
 | `named(string $name): ?Route` | Find a named route. |
 | `url(string $name, array $params = []): string` | Build URL from a named route. |
-| `urlFor(string $name, array $params = []): string` | Alias of `url()`. |
+| `urlFor(string $target, array $params = []): string` | Alias of `url()`; accepts names, patterns or `Class@method`. |
+| `urlForHandler(mixed $handler, array $params = []): string` | Generate a URL from a handler. |
+| `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
 | `resolve(string $method, string $uri): ?array` | `['route' => Route, 'parameters' => array]` or `null`. |
 | `dispatch(string $method, string $uri): mixed` | Execute handler, return raw result. |
 | `run(?string $method = null, ?string $uri = null): void` | Standalone HTTP adapter. |
@@ -110,6 +114,16 @@ See [response.md](response.md) for details.
 | `__construct(string $content = '')` | Create with initial content. |
 | `write(string $data): self` | Append data. |
 | `__toString(): string` | Current content. |
+
+## Route caching
+
+See [routing.md](routing.md) for the route caching section.
+
+| Method | Description |
+| --- | --- |
+| `RouteCache::write(Router $router, string $path, ?Container $container = null): void` | Export routes to a PHP file. |
+| `RouteCache::export(Router $router): array` | Return the export array. |
+| `RouteCache::load(string $path, ?Router $router = null, ?Container $container = null): Router` | Rebuild a router from a cache file. |
 
 ## Providers, discovery and events
 

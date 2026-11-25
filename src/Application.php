@@ -37,6 +37,8 @@ class Application
 
     public readonly Logger $logger;
 
+    private readonly string $basePath;
+
     /** @var list<callable> */
     private array $middleware = [];
 
@@ -66,6 +68,7 @@ class Application
         $this->router = $router ?? new Router();
         $this->container = $container ?? new Container();
         $base = $basePath ?? dirname(__DIR__);
+        $this->basePath = $base;
 
         $configFile = $base . '/config/app.php';
         $fileConfig = is_file($configFile) ? require $configFile : [];
@@ -250,9 +253,55 @@ class Application
         return $this->router->url($name, $params);
     }
 
-    public function urlFor(string $name, array $params = []): string
+    public function urlFor(string $target, array $params = []): string
     {
-        return $this->url($name, $params);
+        return $this->url($target, $params);
+    }
+
+    /** @param array<string, mixed> $params */
+    public function urlForHandler(mixed $handler, array $params = []): string
+    {
+        return $this->router->urlForHandler($handler, $params);
+    }
+
+    private function cachePath(): string
+    {
+        return (string) $this->config(
+            'route.cache.path',
+            $this->basePath . '/storage/cache/routes.php',
+        );
+    }
+
+    /** Load cached route definitions. Returns false when caching is off or no cache exists. */
+    public function routesFromCache(): bool
+    {
+        if (!$this->config('route.cache.enabled', false) || !is_file($this->cachePath())) {
+            return false;
+        }
+
+        RouteCache::load($this->cachePath(), $this->router, $this->container);
+
+        return true;
+    }
+
+    /** Write the current routes to the cache file. */
+    public function cacheRoutes(): void
+    {
+        RouteCache::write($this->router, $this->cachePath(), $this->container);
+    }
+
+    /** Load from cache, or run the callback and write a fresh cache. */
+    public function loadRoutes(callable $callback): void
+    {
+        if ($this->routesFromCache()) {
+            return;
+        }
+
+        $callback($this);
+
+        if ($this->config('route.cache.enabled', false)) {
+            $this->cacheRoutes();
+        }
     }
 
     /** Render a template into an HTML response. */

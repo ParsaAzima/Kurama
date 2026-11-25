@@ -364,6 +364,46 @@ final class ApplicationTest extends TestCase
         self::assertStringContainsString('a=b', $response->getCookies()[0]->toHeader());
     }
 
+    public function testLoadRoutesWritesAndReadsRouteCache(): void
+    {
+        $directory = sys_get_temp_dir() . '/kurama-app-cache-' . bin2hex(random_bytes(4));
+        $path = $directory . '/routes.php';
+        $config = [
+            'debug' => true,
+            'discovery.enabled' => false,
+            'route.cache.enabled' => true,
+            'route.cache.path' => $path,
+        ];
+        $calls = 0;
+
+        try {
+            $first = new Application($config);
+            $first->loadRoutes(function (Application $app) use (&$calls): void {
+                $calls++;
+                $app->get('/users/{id:\d+}', [CacheAppController::class, 'show']);
+            });
+
+            self::assertSame(1, $calls);
+            self::assertFileExists($path);
+
+            $second = new Application($config);
+            $second->loadRoutes(function () use (&$calls): void {
+                $calls++;
+            });
+
+            self::assertSame(1, $calls);
+            $response = $second->handle(new Request('GET', '/users/42'));
+            self::assertSame(['id' => '42'], json_decode($response->getContent(), true));
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+            }
+            if (is_dir($directory)) {
+                rmdir($directory);
+            }
+        }
+    }
+
     public function testRunUsesExplicitMethodAndUri(): void
     {
         $app = new Application();
@@ -432,6 +472,14 @@ final class GreetingHelper
     public function hello(string $name): string
     {
         return 'Hi ' . $name;
+    }
+}
+
+final class CacheAppController
+{
+    public function show(string $id): array
+    {
+        return ['id' => $id];
     }
 }
 

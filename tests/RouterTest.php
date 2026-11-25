@@ -398,6 +398,23 @@ final class RouterTest extends TestCase
         $router->url('user.show', ['id' => 'abc']);
     }
 
+    public function testUrlCanBeGeneratedFromPathPattern(): void
+    {
+        $router = new Router();
+        $router->get('/users/{id:\d+}', static fn (string $id): string => $id);
+
+        self::assertSame('/users/42', $router->url('/users/{id:\d+}', ['id' => 42]));
+    }
+
+    public function testUrlCanBeGeneratedFromHandler(): void
+    {
+        $router = new Router();
+        $router->get('/posts/{post}', [UrlTestController::class, 'show']);
+
+        self::assertSame('/posts/7', $router->url(UrlTestController::class . '@show', ['post' => 7]));
+        self::assertSame('/posts/7', $router->urlForHandler([UrlTestController::class, 'show'], ['post' => 7]));
+    }
+
     public function testMemoizedStaticDispatchDoesNotBreakDynamicRoutes(): void
     {
         $router = new Router();
@@ -483,5 +500,13 @@ final class ExampleHandler
     public static function staticHandle(): string
     {
         return 'static handler';
+    }
+}
+
+final class UrlTestController
+{
+    public function show(string $post): string
+    {
+        return $post;
     }
 }

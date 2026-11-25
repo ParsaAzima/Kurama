@@ -161,7 +161,22 @@ $app->url('user.show', ['id' => 42]);    // /users/42
 $app->urlFor('user.show', ['id' => 42]); // Slim-style alias
 ```
 
-`Router::url()` and `Application::url()` throw `InvalidArgumentException` when the name or a parameter is missing, or when a value does not satisfy its constraint.
+`url()` also works without a name: pass a path pattern (`/users/{id:\d+}`) or a handler (`UserController::class . '@show'`). `urlForHandler()` is available for callable handlers.
+
+For production, enable route caching so route definitions are compiled once:
+
+```php
+$app = AppFactory::create([
+    'route.cache.enabled' => true,
+    'route.cache.path' => __DIR__ . '/../storage/cache/routes.php',
+]);
+
+$app->loadRoutes(function (Application $app): void {
+    $app->get('/users/{id:\d+}', [UserController::class, 'show']);
+});
+```
+
+Closure handlers cannot be cached; use class methods or function names. See [docs/routing.md](docs/routing.md).
 
 ## HTTP request
 
@@ -456,6 +471,6 @@ Not included (see [ROADMAP.md](ROADMAP.md)):
 - Database/ORM or authentication (session, cookie, CSRF and logging utilities are included).
 - Third-party template engines and template caching (the built-in native-PHP engine with layouts is included).
 - Container tags, compiler passes and async queued events. Providers, composer auto-discovery and a synchronous event bus are included.
-- Route caching and automatic URL generation for unnamed routes.
+- Automatic OPTIONS responses (route caching and unnamed-route URL generation are included).
 - Full CLI kernel or automatic OPTIONS responses.
 - PSR-7 / PSR-15 interoperability (the style is inspired by Slim, not compatible with its contracts).

@@ -16,7 +16,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Kurama\\Tests\\": "tests/"
+            "Kurama\\Tests\\": "tests/",
+            "Kurama\\Examples\\": "examples/"
         }
     },
     "scripts": {
