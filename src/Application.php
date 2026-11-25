@@ -8,6 +8,8 @@ use InvalidArgumentException;
 use Kurama\Exceptions\HttpException;
 use Kurama\Exceptions\MethodNotAllowedException;
 use Kurama\Exceptions\RouteNotFoundException;
+use Kurama\Contracts\ServiceProviderInterface;
+use Kurama\Events\Dispatcher;
 use Kurama\Exceptions\ValidationException;
 use Throwable;
 
@@ -50,6 +52,11 @@ class Application
     /** @var array<int, list<callable>> */
     private array $pipelineCache = [];
 
+    /** @var list<ServiceProviderInterface> */
+    private array $providers = [];
+
+    private bool $booted = false;
+
     public function __construct(
         array|Config $config = [],
         ?Router $router = null,
@@ -88,6 +95,15 @@ class Application
         $this->logger = new Logger($logPath);
 
         $this->registerCoreBindings();
+
+        $providers = (array) $this->configuration->get('providers', []);
+        if ((bool) $this->configuration->get('discovery.enabled', true)) {
+            $providers = array_merge($providers, ProviderDiscovery::discover($base));
+        }
+
+        foreach (array_values(array_unique(array_filter($providers, 'is_string'))) as $provider) {
+            $this->register($provider);
+        }
     }
 
     public function get(string $pattern, mixed $handler): Route
@@ -170,6 +186,54 @@ class Application
         return $this->environment->get($key, $default);
     }
 
+    public function events(): Dispatcher
+    {
+        return $this->container->get(Dispatcher::class);
+    }
+
+    public function listen(string $event, callable $listener, int $priority = 0): self
+    {
+        $this->events()->listen($event, $listener, $priority);
+
+        return $this;
+    }
+
+    /** @param class-string<ServiceProviderInterface>|ServiceProviderInterface $provider */
+    public function register(string|ServiceProviderInterface $provider): self
+    {
+        $instance = is_string($provider) ? $this->container->make($provider) : $provider;
+        if (!$instance instanceof ServiceProviderInterface) {
+            throw new InvalidArgumentException('Invalid service provider given.');
+        }
+
+        $this->events()->dispatch('app.registering', $this, $instance);
+        $instance->register($this);
+        $this->providers[] = $instance;
+
+        return $this;
+    }
+
+    public function boot(): self
+    {
+        if ($this->booted) {
+            return $this;
+        }
+
+        $this->events()->dispatch('app.booting', $this);
+        foreach ($this->providers as $provider) {
+            $provider->boot($this);
+        }
+        $this->booted = true;
+        $this->events()->dispatch('app.booted', $this);
+
+        return $this;
+    }
+
+    public function isBooted(): bool
+    {
+        return $this->booted;
+    }
+
     /** Validate data and return only validated fields. */
     public function validate(array $data, array $rules): array
     {
@@ -211,6 +275,9 @@ class Application
 
     public function handle(Request $request): Response
     {
+        $this->boot();
+        $this->events()->dispatch('request.received', $this, $request);
+
         try {
             $result = $this->router->resolve($request->method(), $request->path());
 
@@ -245,16 +312,21 @@ class Application
             }
 
             $response = $next($request);
-
-            return $response instanceof Response ? $response : Response::make($response);
         } catch (Throwable $exception) {
-            return $this->renderError($exception, $request);
+            $response = $this->renderError($exception, $request);
         }
+
+        $response = $response instanceof Response ? $response : Response::make($response);
+        $this->events()->dispatch('response.ready', $this, $response, $request);
+
+        return $response;
     }
 
     public function run(?Request $request = null): void
     {
-        $this->handle($request ?? Request::capture())->send();
+        $response = $this->handle($request ?? Request::capture());
+        $response->send();
+        $this->events()->dispatch('app.terminated', $this, $response);
     }
 
     private function registerCoreBindings(): void
@@ -277,6 +349,10 @@ class Application
         $this->container->instance('csrf', $this->csrf);
         $this->container->instance(Logger::class, $this->logger);
         $this->container->instance('logger', $this->logger);
+
+        $events = new Dispatcher();
+        $this->container->instance(Dispatcher::class, $events);
+        $this->container->instance('events', $events);
     }
 
     /** Build a reusable action runner for a resolved handler. */

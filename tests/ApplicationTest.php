@@ -10,6 +10,7 @@ use Kurama\Config;
 use Kurama\Cookie;
 use Kurama\JsonResponse;
 use Kurama\Request;
+use Kurama\ServiceProvider;
 use Kurama\Template;
 use Kurama\Response;
 use PHPUnit\Framework\TestCase;
@@ -375,6 +376,55 @@ final class ApplicationTest extends TestCase
         self::assertSame('ran', $output);
         self::assertSame(200, http_response_code());
     }
+
+    public function testProviderRegisterAndBootRunOnce(): void
+    {
+        $provider = new RecordingProvider();
+        $app = AppFactory::create(['debug' => true]);
+        $app->register($provider);
+
+        self::assertFalse($app->isBooted());
+        $app->handle(new Request('GET', '/missing'));
+
+        self::assertTrue($app->isBooted());
+        self::assertSame(['register', 'boot'], $provider->calls);
+        self::assertSame('ok', $app->container->get('demo.value'));
+
+        $app->handle(new Request('GET', '/missing'));
+        self::assertSame(['register', 'boot'], $provider->calls);
+    }
+
+    public function testProvidersCanBeConfiguredByClass(): void
+    {
+        $app = new Application([
+            'debug' => true,
+            'discovery.enabled' => false,
+            'providers' => [RecordingProvider::class],
+        ]);
+
+        $app->handle(new Request('GET', '/missing'));
+
+        self::assertSame('ok', $app->container->get('demo.value'));
+    }
+
+    public function testLifecycleEventsFire(): void
+    {
+        $seen = [];
+        $app = AppFactory::create(['debug' => true]);
+        $app->listen('app.booting', static function () use (&$seen): void {
+            $seen[] = 'booting';
+        });
+        $app->listen('request.received', static function () use (&$seen): void {
+            $seen[] = 'request';
+        });
+        $app->listen('response.ready', static function () use (&$seen): void {
+            $seen[] = 'response';
+        });
+
+        $app->handle(new Request('GET', '/missing'));
+
+        self::assertSame(['booting', 'request', 'response'], $seen);
+    }
 }
 
 final class GreetingHelper
@@ -382,5 +432,22 @@ final class GreetingHelper
     public function hello(string $name): string
     {
         return 'Hi ' . $name;
+    }
+}
+
+final class RecordingProvider extends ServiceProvider
+{
+    /** @var list<string> */
+    public array $calls = [];
+
+    public function register(Application $app): void
+    {
+        $this->calls[] = 'register';
+        $app->container->instance('demo.value', 'ok');
+    }
+
+    public function boot(Application $app): void
+    {
+        $this->calls[] = 'boot';
     }
 }

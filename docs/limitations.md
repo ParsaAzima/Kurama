@@ -5,11 +5,11 @@ Kurama is a router-first micro framework. The following are intentionally absent
 ## Not implemented
 
 - Database access, ORM or query builders.
-- Authentication, authorization, sessions or cookies.
+- Authentication and authorization. Session and cookie primitives are included, but no user provider or guard.
 - Third-party template engines (Twig, Blade); only the built-in native-PHP engine is supported.
 - Layout inheritance, template caching and auto-escaping by default; call `escape()` / `e()` explicitly.
-- Service providers, auto-discovery, tags and PSR-11 interface dependencies. A small explicit container is included.
-- Application lifecycle events, event buses or console kernels.
+- Container tags, compiler passes and PSR-11 interface dependencies; the container stays explicit.
+- Console kernels and a full event subsystem with queued/async listeners; the event bus is synchronous and in-process.
 - PSR-7 / PSR-15 interoperability. The style is inspired by Slim, but the value objects are local and dependency-free.
 - Global helper functions such as `app()` or `url_for()`; use the instance methods instead.
 - Route caching, named-route compilers or automatic OPTIONS responses.

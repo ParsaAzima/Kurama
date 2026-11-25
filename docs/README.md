@@ -13,6 +13,8 @@ Start here:
 | Controllers | [controllers.md](controllers.md) |
 | Native PHP templates | [templates.md](templates.md) |
 | Dependency injection | [dependency-injection.md](dependency-injection.md) |
+| Service providers and auto-discovery | [service-providers.md](service-providers.md) |
+| Events | [events.md](events.md) |
 | Configuration | [configuration.md](configuration.md) |
 | Environment variables | [environment.md](environment.md) |
 | Validation | [validation.md](validation.md) |

@@ -37,25 +37,28 @@ The core has no knowledge of superglobals, HTTP responses, middleware or control
 | `Kurama\Csrf` | Session-backed CSRF tokens and middleware. |
 | `Kurama\Cookie` | Cookie value object emitted by `Response`. |
 | `Kurama\Logger` | Minimal file logger. |
+| `Kurama\ServiceProvider` | Optional boot-time grouping of bindings and setup. |
+| `Kurama\ProviderDiscovery` | Reads providers from composer extras. |
+| `Kurama\Events\Dispatcher` | Synchronous in-process event bus. |
 
 You can use the router without the application layer, and the application layer without adding any container or provider.
 
 ## Request lifecycle
 
 1. `Application::run()` creates a `Request` via `Request::capture()` unless one is passed.
-2. `Application::handle()` normalizes the method/path through `Router::resolve()`.
-3. `RouteMatcher` finds the first matching route or throws a routing exception.
+2. `Application::handle()` boots providers once and emits `request.received`.
+3. `Router::resolve()` normalizes the method/path and finds the first matching route, or throws a routing exception.
 4. Matched parameters are attached to the request copy via `withParams()`.
 5. A fresh default `Response` is created.
 6. Global, group and route middleware wrap a final action closure. Controllers receive the request, response and template engine.
 7. The action resolves the handler (closure, callable, controller notation), injects arguments and executes it.
 8. Non-`Response` results are wrapped with `Response::make()`.
 9. Any `Throwable` is rendered by the error handler.
-10. `Response::send()` emits status code, headers and body.
+10. `response.ready` is emitted; `Response::send()` emits status code, headers and body; `app.terminated` is emitted after send.
 
 ## Design rules
 
-- No service providers or event bus. The container is small, opt-in and has no interface dependency.
+- Providers, auto-discovery and events are opt-in and run only during boot; the container has no PSR interface dependency.
 - No static mutable state. `AppFactory::create()` is a stateless factory.
 - No PSR-7 dependency; `Request`, `Response` and `Body` are small local value objects.
 - Opt-in layers: using `Router` alone keeps working.

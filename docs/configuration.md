@@ -58,6 +58,8 @@ Dotted keys passed to `load()` are normalized into nested arrays, so `['views.pa
 | `session.name` | PHP session name. | `kurama_session` |
 | `session.native` | Use native PHP sessions. | `true` |
 | `log.path` | Log file location. | `<project root>/storage/logs/app.log` |
+| `providers` | Explicit provider class list. | `[]` |
+| `discovery.enabled` | Read providers from composer extras. | `true` |
 
 Other keys are stored untouched and can be used by your own code via `$app->config(...)` or by injecting `Kurama\Config`.
 

@@ -265,6 +265,33 @@ $app->logger->info('User registered', ['id' => 42]);
 
 Validation failures return **422** with grouped `errors`, CSRF failures return **419**. See [docs/validation.md](docs/validation.md), [docs/session.md](docs/session.md), [docs/csrf.md](docs/csrf.md), [docs/cookie.md](docs/cookie.md) and [docs/logging.md](docs/logging.md).
 
+## Providers and events
+
+```php
+use Kurama\Application;
+use Kurama\ServiceProvider;
+
+final class AppServiceProvider extends ServiceProvider
+{
+    public function register(Application $app): void
+    {
+        $app->container->singleton(MyService::class);
+    }
+
+    public function boot(Application $app): void
+    {
+        $app->middleware($app->csrf->middleware());
+        $app->listen('response.ready', fn (Application $app, Response $response) => /* ... */);
+    }
+}
+
+$app->register(AppServiceProvider::class);
+```
+
+Providers can also be listed in `config/app.php` under `providers`, or auto-discovered from `extra.kurama.providers` in any Composer package (`discovery.enabled`, default `true`). `boot()` runs once; the router core remains unchanged.
+
+See [docs/service-providers.md](docs/service-providers.md) and [docs/events.md](docs/events.md).
+
 ## Templates
 
 Kurama ships with a tiny native-PHP template engine — no Twig/Blade dependency.
@@ -412,7 +439,7 @@ use Kurama\Exceptions\MethodNotAllowedException;
 - Dynamic candidates are limited by the first matching static route, preserving registration order.
 - Paths with a different segment count are rejected before PCRE runs.
 - The container caches argument and constructor plans; request paths are normalized once.
-- No provider boot phase or event bus in the request path.
+- Providers boot once; event dispatch is a no-op when no listeners are registered.
 - `examples/benchmark.php` runs static/dynamic and 201-route dispatch loops. See [docs/performance.md](docs/performance.md) for a comparison with FastRoute, Slim 4 and Laravel 11.
 
 ## Running tests
@@ -428,7 +455,7 @@ Not included (see [ROADMAP.md](ROADMAP.md)):
 
 - Database/ORM or authentication (session, cookie, CSRF and logging utilities are included).
 - Third-party template engines and template caching (the built-in native-PHP engine with layouts is included).
-- Service providers, auto-discovery and event buses (a small explicit container is included).
+- Container tags, compiler passes and async queued events. Providers, composer auto-discovery and a synchronous event bus are included.
 - Route caching and automatic URL generation for unnamed routes.
 - Full CLI kernel or automatic OPTIONS responses.
 - PSR-7 / PSR-15 interoperability (the style is inspired by Slim, not compatible with its contracts).

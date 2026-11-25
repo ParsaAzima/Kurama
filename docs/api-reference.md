@@ -22,6 +22,9 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `urlFor(string $name, array $params = []): string` | Alias of `url()`. |
 | `config(string $key, mixed $default = null)` / `env(...)` | Read configuration / environment values. |
 | `validate(array $data, array $rules): array` | Validate and return validated fields, or throw `ValidationException`. |
+| `events(): Dispatcher` / `listen()` | Access the event bus / register a listener. |
+| `register(string\|ServiceProviderInterface): self` | Register a provider. |
+| `boot(): self` / `isBooted(): bool` | Boot providers once / check state. |
 | `render(string $template, array $data = [], int $status = 200, ?string $layout = null): Response` | Render a template into an HTML response. |
 | `setErrorHandler(callable $handler): self` | Set custom error renderer. |
 | `handle(Request $request): Response` | Dispatch without sending output. |
@@ -107,6 +110,16 @@ See [response.md](response.md) for details.
 | `__construct(string $content = '')` | Create with initial content. |
 | `write(string $data): self` | Append data. |
 | `__toString(): string` | Current content. |
+
+## Providers, discovery and events
+
+See [service-providers.md](service-providers.md) and [events.md](events.md).
+
+| Class | Key members |
+| --- | --- |
+| `ServiceProvider` | `register(Application)`, optional `boot(Application)`. |
+| `ProviderDiscovery` | `discover(string $basePath)`, `fromComposer()`, `fromArray()`. |
+| `Dispatcher` | `listen()`, `once()`, `wildcard()`, `has()`, `forget()`, `dispatch()`. |
 
 ## Validation, session, CSRF, cookies and logging
 

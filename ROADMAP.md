@@ -23,7 +23,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.5.0` | Native PHP template engine | Released |
 | `v0.6.0` | Phase 3 application features | Released |
 | `v0.7.0` | Phase 4 utilities | Released |
-| `v0.8.0` | Developer tooling (dev-only) | Next |
+| `v0.8.0` | Providers, auto-discovery and events | Released |
+| `v0.9.0` | Developer tooling (dev-only) | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -95,7 +96,15 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - `Kurama\Logger` with level methods and file output.
 - Documentation for all five utilities.
 
-## v0.8.0 — Developer tooling (next)
+## v0.8.0 — Providers, auto-discovery and events (released)
+
+- `ServiceProviderInterface` and `ServiceProvider` with `register()` / `boot()` lifecycle.
+- `Application::register()`, `boot()`, `isBooted()` and lifecycle events.
+- `ProviderDiscovery` reading `extra.kurama.providers` from the root project and installed packages.
+- `Kurama\Events\Dispatcher` with priorities, wildcards and `once()`.
+- Opt-in: boot runs once, event dispatch is skipped when no listeners exist.
+
+## v0.9.0 — Developer tooling (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 
