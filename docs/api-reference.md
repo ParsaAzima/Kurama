@@ -28,6 +28,8 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `config(string $key, mixed $default = null)` / `env(...)` | Read configuration / environment values. |
 | `validate(array $data, array $rules): array` | Validate and return validated fields, or throw `ValidationException`. |
 | `events(): Dispatcher` / `listen()` | Access the event bus / register a listener. |
+| `queueEvent()` / `flushEvents()` | Queue and flush deferred events. |
+| `tagged(string $tag): array` | Resolve provider-tagged services. |
 | `register(string\|ServiceProviderInterface): self` | Register a provider. |
 | `boot(): self` / `isBooted(): bool` | Boot providers once / check state. |
 | `render(string $template, array $data = [], int $status = 200, ?string $layout = null): Response` | Render a template into an HTML response. |
@@ -152,9 +154,9 @@ See [service-providers.md](service-providers.md) and [events.md](events.md).
 
 | Class | Key members |
 | --- | --- |
-| `ServiceProvider` | `register(Application)`, optional `boot(Application)`. |
+| `ServiceProvider` | `register(Application)`, optional `boot(Application)`, `requires()`, `tags()`. |
 | `ProviderDiscovery` | `discover(string $basePath)`, `fromComposer()`, `fromArray()`. |
-| `Dispatcher` | `listen()`, `once()`, `wildcard()`, `has()`, `forget()`, `dispatch()`. |
+| `Dispatcher` | `listen()`, `once()`, `wildcard()`, `has()`, `forget()`, `dispatch()`, `defer()`, `queue()`, `flush()`. |
 
 ## Validation, session, CSRF, cookies and logging
 

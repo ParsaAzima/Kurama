@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kurama\Tests;
 
+use InvalidArgumentException;
 use Kurama\AppFactory;
 use Kurama\Application;
 use Kurama\Config;
@@ -469,6 +470,49 @@ final class ApplicationTest extends TestCase
         self::assertSame(['first', 'second'], $seen);
     }
 
+    public function testDeferredEventsFlushExplicitly(): void
+    {
+        $app = new Application(['debug' => true, 'events.defer' => true, 'discovery.enabled' => false]);
+        $seen = [];
+        $app->listen('custom.event', static function (string $value) use (&$seen): void {
+            $seen[] = $value;
+        });
+
+        $app->queueEvent('custom.event', 'one');
+        $app->events()->dispatch('custom.event', 'two');
+
+        self::assertSame([], $seen);
+        $app->flushEvents();
+        self::assertSame(['one', 'two'], $seen);
+    }
+
+    public function testProviderDependenciesAndTags(): void
+    {
+        $app = AppFactory::create(['debug' => true, 'discovery.enabled' => false]);
+        $dependent = new DependentProvider();
+        $dependency = new DependencyProvider();
+
+        // Registered in the "wrong" order on purpose.
+        $app->register($dependent);
+        $app->register($dependency);
+        $app->handle(new Request('GET', '/missing'));
+
+        self::assertSame(['dependency.register', 'dependency.boot'], $dependency->calls);
+        self::assertSame(['dependent.register', 'dependent.boot'], $dependent->calls);
+        self::assertSame('dependency-value', $app->container->get('dependency.value'));
+        self::assertSame(['dependency-value'], $app->tagged('demo.tag'));
+    }
+
+    public function testCircularProviderDependencyThrows(): void
+    {
+        $app = AppFactory::create(['debug' => true, 'discovery.enabled' => false]);
+        $app->register(new CircularAProvider());
+        $app->register(new CircularBProvider());
+
+        $this->expectException(InvalidArgumentException::class);
+        $app->boot();
+    }
+
     public function testRunUsesExplicitMethodAndUri(): void
     {
         $app = new Application();
@@ -545,6 +589,73 @@ final class CacheAppController
     public function show(string $id): array
     {
         return ['id' => $id];
+    }
+}
+
+final class DependencyProvider extends ServiceProvider
+{
+    /** @var list<string> */
+    public array $calls = [];
+
+    public function register(Application $app): void
+    {
+        $this->calls[] = 'dependency.register';
+        $app->container->instance('dependency.value', 'dependency-value');
+    }
+
+    public function boot(Application $app): void
+    {
+        $this->calls[] = 'dependency.boot';
+    }
+
+    public function tags(): array
+    {
+        return ['demo.tag' => ['dependency.value']];
+    }
+}
+
+final class DependentProvider extends ServiceProvider
+{
+    /** @var list<string> */
+    public array $calls = [];
+
+    public function requires(): array
+    {
+        return [DependencyProvider::class];
+    }
+
+    public function register(Application $app): void
+    {
+        $this->calls[] = 'dependent.register';
+    }
+
+    public function boot(Application $app): void
+    {
+        $this->calls[] = 'dependent.boot';
+    }
+}
+
+final class CircularAProvider extends ServiceProvider
+{
+    public function register(Application $app): void
+    {
+    }
+
+    public function requires(): array
+    {
+        return [CircularBProvider::class];
+    }
+}
+
+final class CircularBProvider extends ServiceProvider
+{
+    public function register(Application $app): void
+    {
+    }
+
+    public function requires(): array
+    {
+        return [CircularAProvider::class];
     }
 }
 

@@ -25,7 +25,55 @@ final class AppServiceProvider extends ServiceProvider
 
 `register()` should only bind services. Other providers may not be registered yet. `boot()` runs after every provider has been registered.
 
-Extending `Kurama\ServiceProvider` is optional: you may implement `Kurama\Contracts\ServiceProviderInterface` directly.
+Extending `Kurama\ServiceProvider` is optional: you may implement `Kurama\Contracts\ServiceProviderInterface` directly. `requires()` and `tags()` are convenience methods on the base class, detected dynamically by `Application`.
+
+## Dependencies between providers
+
+```php
+final class DatabaseProvider extends ServiceProvider
+{
+    public function register(Application $app): void
+    {
+        $app->container->singleton(Connection::class);
+    }
+}
+
+final class UserProvider extends ServiceProvider
+{
+    public function requires(): array
+    {
+        return [DatabaseProvider::class];
+    }
+
+    public function register(Application $app): void
+    {
+        $app->container->singleton(UserRepository::class);
+    }
+}
+```
+
+Providers are registered and booted in dependency order, even if registered in the wrong order. Circular dependencies throw `InvalidArgumentException`. Dependencies that are not registered are ignored.
+
+## Provider tags
+
+```php
+final class LoggingProvider extends ServiceProvider
+{
+    public function register(Application $app): void
+    {
+        $app->container->instance('logger.file', new Logger('/tmp/app.log'));
+    }
+
+    public function tags(): array
+    {
+        return ['loggers' => ['logger.file']];
+    }
+}
+
+$loggers = $app->tagged('loggers'); // resolved container values
+```
+
+Tags expose container ids; `Application::tagged()` resolves them lazily and skips missing ids.
 
 ## Registering providers
 

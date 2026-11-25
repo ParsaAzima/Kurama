@@ -57,6 +57,32 @@ final class DispatcherTest extends TestCase
         self::assertSame(1, $count);
     }
 
+    public function testDeferredEventsAreQueuedAndFlushedInOrder(): void
+    {
+        $dispatcher = new Dispatcher();
+        $seen = [];
+
+        $dispatcher->listen('a', static function () use (&$seen): void {
+            $seen[] = 'a';
+        });
+        $dispatcher->listen('b', static function () use (&$seen): void {
+            $seen[] = 'b';
+        });
+
+        $dispatcher->defer();
+        $dispatcher->dispatch('b');
+        $dispatcher->dispatch('a');
+
+        self::assertTrue($dispatcher->isDeferred());
+        self::assertCount(2, $dispatcher->queued());
+        self::assertSame([], $seen);
+
+        $dispatcher->flush();
+
+        self::assertSame(['b', 'a'], $seen);
+        self::assertSame([], $dispatcher->queued());
+    }
+
     public function testDispatchWithoutListenersIsSafeAndForgetWorks(): void
     {
         $dispatcher = new Dispatcher();

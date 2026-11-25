@@ -13,6 +13,11 @@ final class Dispatcher
     /** @var list<array{0: string, 1: callable, 2: int}> */
     private array $wildcards = [];
 
+    /** @var list<array{0: string, 1: list<mixed>}> */
+    private array $queue = [];
+
+    private bool $deferred = false;
+
     public function listen(string $event, callable $listener, int $priority = 0): self
     {
         $this->listeners[$event][] = [$listener, $priority];
@@ -67,7 +72,54 @@ final class Dispatcher
         return $this;
     }
 
+    /** Queue events instead of running listeners immediately. */
+    public function defer(bool $enabled = true): self
+    {
+        $this->deferred = $enabled;
+
+        return $this;
+    }
+
+    public function isDeferred(): bool
+    {
+        return $this->deferred;
+    }
+
+    /** Add an event to the deferred queue. */
+    public function queue(string $event, mixed ...$payload): self
+    {
+        $this->queue[] = [$event, $payload];
+
+        return $this;
+    }
+
+    /** @return list<array{0: string, 1: list<mixed>}> */
+    public function queued(): array
+    {
+        return $this->queue;
+    }
+
+    /** Dispatch all queued events in FIFO order. */
+    public function flush(): void
+    {
+        while ($this->queue !== []) {
+            [$event, $payload] = array_shift($this->queue);
+            $this->dispatchNow($event, ...$payload);
+        }
+    }
+
     public function dispatch(string $event, mixed ...$payload): void
+    {
+        if ($this->deferred) {
+            $this->queue($event, ...$payload);
+
+            return;
+        }
+
+        $this->dispatchNow($event, ...$payload);
+    }
+
+    private function dispatchNow(string $event, mixed ...$payload): void
     {
         if (!$this->has($event)) {
             return;

@@ -37,6 +37,20 @@ Wildcard patterns use `*` as a segment wildcard; `*` alone matches every event.
 
 `dispatch()` returns immediately when there are no listeners, so the hot path stays cheap.
 
+## Deferred events
+
+Deferred mode queues events instead of running listeners immediately; `flush()` dispatches them in FIFO order after the response:
+
+```php
+$app = AppFactory::create(['events.defer' => true]);
+
+$app->listen('user.created', $listener);
+$app->dispatch('user.created', 42);   // queued
+$app->flushEvents();                  // listener runs here
+```
+
+`Application::run()` flushes automatically after sending the response. `queueEvent()` always enqueues an event regardless of defer mode, while `Dispatcher::defer()` toggles the global queue mode.
+
 ## Notes
 
 - Listeners run in registration order within the same priority.

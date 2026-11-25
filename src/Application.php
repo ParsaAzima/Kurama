@@ -61,6 +61,11 @@ class Application
     /** @var list<ServiceProviderInterface> */
     private array $providers = [];
 
+    /** @var array<int, ServiceProviderInterface> */
+    private array $orderedProviders = [];
+
+    private bool $providersRegistered = false;
+
     private bool $booted = false;
 
     public function __construct(
@@ -219,6 +224,18 @@ class Application
         return $this;
     }
 
+    public function queueEvent(string $event, mixed ...$payload): self
+    {
+        $this->events()->queue($event, ...$payload);
+
+        return $this;
+    }
+
+    public function flushEvents(): void
+    {
+        $this->events()->flush();
+    }
+
     /** @param class-string<ServiceProviderInterface>|ServiceProviderInterface $provider */
     public function register(string|ServiceProviderInterface $provider): self
     {
@@ -227,11 +244,28 @@ class Application
             throw new InvalidArgumentException('Invalid service provider given.');
         }
 
-        $this->events()->dispatch('app.registering', $this, $instance);
-        $instance->register($this);
         $this->providers[] = $instance;
+        $this->providersRegistered = false;
 
         return $this;
+    }
+
+    /** Resolve container ids exposed by providers under a tag. */
+    public function tagged(string $tag): array
+    {
+        $items = [];
+        foreach ($this->providers as $provider) {
+            if (!method_exists($provider, 'tags')) {
+                continue;
+            }
+            foreach ((array) ($provider->tags()[$tag] ?? []) as $id) {
+                if ($this->container->has($id)) {
+                    $items[$id] = $this->container->get($id);
+                }
+            }
+        }
+
+        return array_values($items);
     }
 
     public function boot(): self
@@ -240,14 +274,66 @@ class Application
             return $this;
         }
 
+        if (!$this->providersRegistered) {
+            $this->orderedProviders = $this->orderProviders();
+            foreach ($this->orderedProviders as $provider) {
+                $this->events()->dispatch('app.registering', $this, $provider);
+                $provider->register($this);
+            }
+            $this->providersRegistered = true;
+        }
+
         $this->events()->dispatch('app.booting', $this);
-        foreach ($this->providers as $provider) {
+        foreach ($this->orderedProviders as $provider) {
             $provider->boot($this);
         }
         $this->booted = true;
         $this->events()->dispatch('app.booted', $this);
 
         return $this;
+    }
+
+    /** @return array<int, ServiceProviderInterface> */
+    private function orderProviders(): array
+    {
+        $byClass = [];
+        foreach ($this->providers as $provider) {
+            $byClass[get_class($provider)] ??= $provider;
+        }
+
+        $ordered = [];
+        $visiting = [];
+        $done = [];
+
+        $visit = function (string $class) use (&$visit, &$ordered, &$visiting, &$done, $byClass): void {
+            if (isset($done[$class]) || !isset($byClass[$class])) {
+                return;
+            }
+            if (isset($visiting[$class])) {
+                throw new InvalidArgumentException("Circular provider dependency [{$class}].");
+            }
+
+            $visiting[$class] = true;
+            $provider = $byClass[$class];
+            $requires = method_exists($provider, 'requires') ? $provider->requires() : [];
+            foreach ((array) $requires as $dependency) {
+                $visit((string) $dependency);
+            }
+            unset($visiting[$class]);
+            $done[$class] = true;
+
+            foreach ($this->providers as $candidate) {
+                if (get_class($candidate) === $class) {
+                    $ordered[spl_object_id($candidate)] = $candidate;
+                }
+            }
+        };
+
+        foreach ($this->providers as $provider) {
+            $visit(get_class($provider));
+        }
+
+        return array_values($ordered);
     }
 
     public function isBooted(): bool
@@ -452,6 +538,7 @@ class Application
         $response = $this->handle($request ?? Request::capture());
         $response->send();
         $this->events()->dispatch('app.terminated', $this, $response);
+        $this->flushEvents();
     }
 
     /** Run the CLI kernel and return an exit code. */
@@ -490,6 +577,7 @@ class Application
         $this->container->instance('logger', $this->logger);
 
         $events = new Dispatcher();
+        $events->defer((bool) $this->configuration->get('events.defer', false));
         $this->container->instance(Dispatcher::class, $events);
         $this->container->instance('events', $events);
     }

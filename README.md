@@ -306,6 +306,8 @@ $app->register(AppServiceProvider::class);
 
 Providers can also be listed in `config/app.php` under `providers`, or auto-discovered from `extra.kurama.providers` in any Composer package (`discovery.enabled`, default `true`). `boot()` runs once; the router core remains unchanged.
 
+Providers can declare `requires()` for ordered boot, `tags()` for `$app->tagged('name')`, and events can be deferred with `events.defer` then flushed via `$app->flushEvents()`. See [docs/service-providers.md](docs/service-providers.md) and [docs/events.md](docs/events.md).
+
 See [docs/service-providers.md](docs/service-providers.md) and [docs/events.md](docs/events.md).
 
 ## CLI

@@ -26,4 +26,5 @@ return [
     'route.cache.sources' => [dirname(__DIR__) . '/config', dirname(__DIR__) . '/routes'],
 
     'options.auto' => true,
+    'events.defer' => false,
 ];
