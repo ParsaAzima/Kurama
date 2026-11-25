@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kurama;
 
 use InvalidArgumentException;
+use Kurama\Contracts\RendererInterface;
 use RuntimeException;
 use Throwable;
 
@@ -14,7 +15,7 @@ use Throwable;
  * Templates are plain PHP files. Inside a template, $this is the Template
  * instance, so partials, escaping and shared data are available without globals.
  */
-final class Template
+final class Template implements RendererInterface
 {
     /** @var array<string, mixed> */
     private array $shared = [];

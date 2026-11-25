@@ -26,6 +26,7 @@ php bin/kurama list
 | `cache:routes` | Write the route cache file. |
 | `cache:clear` | Delete the route cache file. |
 | `serve` | Run the long-running worker server (see [server.md](server.md)). |
+| `view:clear` | Flush the rendered view cache. |
 
 ## Custom commands
 

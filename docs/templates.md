@@ -96,6 +96,43 @@ $app->template->share('appName', 'Kurama');
 
 Shared data is merged before per-render data, so explicit data wins.
 
+## Third-party engines
+
+`Kurama\View\Renderer` dispatches by file extension. Register any callable or object with a `render()` method:
+
+```php
+$app = AppFactory::create([
+    'view.engines' => [
+        'twig' => fn (string $template, array $data): string =>
+            $twig->render($template . '.twig', $data),
+    ],
+]);
+
+$app->render('home.twig', ['title' => 'Kurama']);
+```
+
+To replace the default native engine entirely, set `view.engine` to a callable or a `RendererInterface` implementation. `CallableRenderer` adapts either form:
+
+```php
+use Kurama\View\CallableRenderer;
+
+$renderer = new CallableRenderer($twig);
+```
+
+The engine receives the template name and data and returns a string. Layouts still work: the inner content is passed as the `content` variable to the layout template.
+
+## Rendered-view cache
+
+```php
+$app = AppFactory::create([
+    'view.cache.enabled' => true,
+    'view.cache.path' => __DIR__ . '/../storage/views',
+    'view.cache.ttl' => 3600,
+]);
+```
+
+The cache key is the template name, layout name and a sorted hash of the data. `Renderer::render(..., $cached = false)` bypasses it for one call. Clear it with `composer console -- view:clear` or `$app->view->cache()?->flush()`.
+
 ## Safety and errors
 
 - Template names may contain letters, digits, `_`, `.`, `-` and `/`; `..` is rejected, so `../secret` cannot escape the views directory.

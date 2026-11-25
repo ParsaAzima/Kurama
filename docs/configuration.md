@@ -52,7 +52,12 @@ Dotted keys passed to `load()` are normalized into nested arrays, so `['views.pa
 | --- | --- | --- |
 | `debug` | Include exception details in error responses. | `false` |
 | `timezone` | Passed to `date_default_timezone_set()`. | PHP default |
-| `views.path` | Template directory. | `<project root>/views` |
+| `views.path` | Native template directory. | `<project root>/views` |
+| `view.engine` | Callable / `RendererInterface` replacing the default engine. | native PHP |
+| `view.engines` | Extension => callable / renderer map. | `[]` |
+| `view.cache.enabled` | Cache rendered output. | `false` |
+| `view.cache.path` | Rendered cache directory. | `<project root>/storage/views` |
+| `view.cache.ttl` | Cache lifetime in seconds; 0 means no expiry. | `0` |
 | `env.path` | `.env` file location. | `<project root>/.env` |
 | `env.enabled` | Whether to auto-load `.env`. | `true` |
 | `session.name` | PHP session name. | `kurama_session` |

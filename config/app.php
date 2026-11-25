@@ -12,6 +12,12 @@ return [
     // 'env.path' => dirname(__DIR__) . '/.env',
     'env.enabled' => true,
 
+    'view.engine' => null,
+    'view.engines' => [],
+    'view.cache.enabled' => false,
+    'view.cache.path' => dirname(__DIR__) . '/storage/views',
+    'view.cache.ttl' => 0,
+
     'session.name' => 'kurama_session',
     'session.native' => true,
     'log.path' => dirname(__DIR__) . '/storage/logs/app.log',

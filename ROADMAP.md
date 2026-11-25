@@ -30,7 +30,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.12.0` | Remaining weaknesses | Released |
 | `v0.13.0` | Advanced events and providers | Released |
 | `v0.14.0` | Long-running worker server | Released |
-| `v0.15.0` | API freeze and stable release | Next |
+| `v0.15.0` | Third-party engines and view cache | Released |
+| `v0.16.0` | API freeze and stable release | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -157,7 +158,14 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - `Application::prepareForRequest()` resets session and router memo between iterations.
 - `php bin/kurama serve` and `composer serve:worker`.
 
-## v0.15.0 — API freeze and stable release (next)
+## v0.15.0 — Third-party engines and view cache (released)
+
+- `RendererInterface`, `CallableRenderer` and extension-based `Renderer`.
+- Any Twig/Blade/custom engine can be plugged in without a framework dependency.
+- File-backed rendered-view cache with TTL and `view:clear` command.
+- `Application::$view`, container bindings and controller `view()` delegation.
+
+## v0.16.0 — API freeze and stable release (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 

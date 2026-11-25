@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kurama;
 
+use Kurama\View\Renderer;
 use LogicException;
 
 /**
@@ -20,6 +21,8 @@ abstract class Controller
 
     private ?Template $template = null;
 
+    private ?Renderer $view = null;
+
     private ?Container $container = null;
 
     public function setContext(
@@ -27,11 +30,13 @@ abstract class Controller
         Response $response,
         ?Template $template = null,
         ?Container $container = null,
+        ?Renderer $view = null,
     ): void {
         $this->request = $request;
         $this->response = $response;
         $this->template = $template;
         $this->container = $container;
+        $this->view = $view;
     }
 
     protected function request(): Request
@@ -76,7 +81,11 @@ abstract class Controller
         int $status = 200,
         ?string $layout = null,
     ): Response {
-        return Response::html($this->template()->render($template, $data, $layout), $status);
+        $content = $this->view !== null
+            ? $this->view->render($template, $data, $layout)
+            : $this->template()->render($template, $data, $layout);
+
+        return Response::html($content, $status);
     }
 
     /** Resolve a service from the application container. */

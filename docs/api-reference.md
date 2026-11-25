@@ -40,7 +40,8 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `handle(Request $request): Response` | Dispatch without sending output. |
 | `run(?Request $request = null): void` | Dispatch and send response. |
 | `router` (public readonly `Router`) | Underlying router. |
-| `template` (public readonly `Template`) | Template engine instance. |
+| `template` (public readonly `Template`) | Native PHP template engine. |
+| `view` (public readonly `Renderer`) | Engine dispatcher and view cache. |
 | `configuration` (public readonly `Config`) | Configuration repository. |
 | `environment` (public readonly `Environment`) | Environment variables. |
 | `container` (public readonly `Container`) | DI container. |
@@ -126,6 +127,17 @@ See [response.md](response.md) for details.
 | `__construct(string $content = '')` | Create with initial content. |
 | `write(string $data): self` | Append data. |
 | `__toString(): string` | Current content. |
+
+## View engines
+
+See [templates.md](templates.md).
+
+| Class | Key members |
+| --- | --- |
+| `RendererInterface` | `render(string $template, array $data = []): string`. |
+| `Renderer` | `engine()`, `render()`, `cache()`. |
+| `CallableRenderer` | Adapts a callable or object with `render()`. |
+| `ViewCache` | `get()`, `put()`, `forget()`, `flush()`. |
 
 ## Worker server
 

@@ -13,6 +13,7 @@ use Kurama\Console\Commands\ListCommand;
 use Kurama\Console\Commands\RouteListCommand;
 use Kurama\Console\Commands\ServeCommand;
 use Kurama\Console\Commands\VersionCommand;
+use Kurama\Console\Commands\ViewClearCommand;
 use Throwable;
 
 /** Minimal console kernel. Commands return exit codes; nothing calls exit(). */
@@ -55,6 +56,7 @@ final class Console
             CacheRoutesCommand::class,
             CacheClearCommand::class,
             ServeCommand::class,
+            ViewClearCommand::class,
         ] as $command) {
             $this->command($command);
         }

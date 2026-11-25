@@ -10,9 +10,13 @@ use Kurama\Exceptions\HttpException;
 use Kurama\Exceptions\MethodNotAllowedException;
 use Kurama\Exceptions\RouteNotFoundException;
 use Kurama\Console\Console;
+use Kurama\Contracts\RendererInterface;
 use Kurama\Contracts\ServiceProviderInterface;
 use Kurama\Events\Dispatcher;
 use Kurama\Exceptions\ValidationException;
+use Kurama\View\CallableRenderer;
+use Kurama\View\Renderer;
+use Kurama\View\ViewCache;
 use Throwable;
 
 /**
@@ -26,6 +30,8 @@ class Application
     public readonly Router $router;
 
     public readonly Template $template;
+
+    public readonly Renderer $view;
 
     public readonly Config $configuration;
 
@@ -85,8 +91,30 @@ class Application
         $this->configuration = new Config(is_array($fileConfig) ? $fileConfig : []);
         $this->configuration->load($config instanceof Config ? $config->all() : $config);
 
-        $viewsPath = $this->configuration->get('views.path', $base . '/views');
-        $this->template = new Template((string) $viewsPath);
+        $viewsPath = (string) $this->configuration->get('views.path', $base . '/views');
+        $this->template = new Template($viewsPath);
+
+        $cache = null;
+        if ((bool) $this->configuration->get('view.cache.enabled', false)) {
+            $cachePath = (string) $this->configuration->get(
+                'view.cache.path',
+                $base . '/storage/views',
+            );
+            $cache = new ViewCache($cachePath, (int) $this->configuration->get('view.cache.ttl', 0));
+        }
+
+        $engine = $this->configuration->get('view.engine');
+        $default = $engine instanceof RendererInterface
+            ? $engine
+            : ($engine === null ? $this->template : new CallableRenderer($engine));
+
+        $this->view = new Renderer($default, $cache);
+        foreach ((array) $this->configuration->get('view.engines', []) as $extension => $custom) {
+            $renderer = $custom instanceof RendererInterface
+                ? $custom
+                : new CallableRenderer($custom);
+            $this->view->engine((string) $extension, $renderer);
+        }
 
         $this->environment = new Environment();
         $envPath = (string) $this->configuration->get('env.path', $base . '/.env');
@@ -448,7 +476,7 @@ class Application
         int $status = 200,
         ?string $layout = null,
     ): Response {
-        return Response::html($this->template->render($template, $data, $layout), $status);
+        return Response::html($this->view->render($template, $data, $layout), $status);
     }
 
     /** Add an error handler to the chain: fn (Throwable, Request, callable $next): Response */
@@ -572,6 +600,8 @@ class Application
         $this->container->instance('router', $this->router);
         $this->container->instance(Template::class, $this->template);
         $this->container->instance('template', $this->template);
+        $this->container->instance(Renderer::class, $this->view);
+        $this->container->instance('view', $this->view);
         $this->container->instance(Config::class, $this->configuration);
         $this->container->instance('config', $this->configuration);
         $this->container->instance(Environment::class, $this->environment);
@@ -594,7 +624,7 @@ class Application
     {
         return function (Request $request, array $parameters, Response $initialResponse) use ($handler): mixed {
             if (is_array($handler) && $handler[0] instanceof Controller) {
-                $handler[0]->setContext($request, $initialResponse, $this->template, $this->container);
+                $handler[0]->setContext($request, $initialResponse, $this->template, $this->container, $this->view);
             }
 
             $output = $this->container->call($handler, array_merge($parameters, [

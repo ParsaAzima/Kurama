@@ -360,7 +360,17 @@ Templates are plain PHP files; dot notation maps to subdirectories (`partials.gr
 <?= $this->render('partials.greeting', ['name' => 'world']) ?>
 ```
 
-See [docs/templates.md](docs/templates.md) for the full API and safety rules.
+Third-party engines are adapted without adding runtime dependencies:
+
+```php
+$app = AppFactory::create([
+    'view.engines' => ['twig' => fn ($tpl, $data) => $twig->render($tpl . '.twig', $data)],
+    'view.cache.enabled' => true,
+    'view.cache.path' => __DIR__ . '/../storage/views',
+]);
+```
+
+Use `composer console -- view:clear` to flush rendered output. See [docs/templates.md](docs/templates.md) for the full API and safety rules.
 
 ## Configuration, environment and DI
 
@@ -505,7 +515,7 @@ CI runs the same suite plus `composer validate` and syntax checks on PHP 8.3 via
 Not included (see [ROADMAP.md](ROADMAP.md)):
 
 - Database/ORM or authentication (session, cookie, CSRF and logging utilities are included).
-- Third-party template engines and template caching (the built-in native-PHP engine with layouts is included).
+- Bundled Twig/Blade packages. Any third-party engine can be adapted via callable or `RendererInterface`; rendered-view caching is included.
 - Container tags, compiler passes and async queued events. Providers, composer auto-discovery and a synchronous event bus are included.
 - Threaded/async request handling and long-running worker servers.
 - PSR-7 / PSR-15 interoperability (the style is inspired by Slim, not compatible with its contracts).
