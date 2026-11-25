@@ -1,8 +1,14 @@
 {
     "name": "kurama/framework",
-    "description": "Kurama - a lightweight, standalone PHP micro router.",
+    "description": "Kurama - a lightweight, standalone PHP micro framework by berlium.",
     "type": "library",
     "license": "MIT",
+    "authors": [
+        {
+            "name": "berlium",
+            "role": "Developer"
+        }
+    ],
     "require": {
         "php": ">=8.3"
     },

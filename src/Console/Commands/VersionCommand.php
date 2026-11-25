@@ -7,6 +7,7 @@ namespace Kurama\Console\Commands;
 use Kurama\Console\Command;
 use Kurama\Console\Console;
 use Kurama\Console\Input;
+use Kurama\Version;
 
 final class VersionCommand extends Command
 {
@@ -22,7 +23,9 @@ final class VersionCommand extends Command
 
     public function handle(Input $input, Console $console): int
     {
-        $console->output('Kurama / PHP ' . PHP_VERSION . PHP_EOL);
+        $console->output(
+            'Kurama ' . Version::CURRENT . ' by berlium / PHP ' . PHP_VERSION . PHP_EOL,
+        );
 
         return 0;
     }

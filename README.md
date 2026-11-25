@@ -6,6 +6,7 @@
 
 <p align="center">
   A lightweight PHP micro framework inspired by Flask's developer experience.
+  <br>Built by <strong>berlium</strong> · Stable release <strong>1.0.0</strong>
 </p>
 
 <p align="center">
@@ -38,7 +39,7 @@ Full documentation is in [docs/](docs/README.md). See [ROADMAP.md](ROADMAP.md) f
 ## Installation
 
 ```bash
-composer require kurama/framework:@dev
+composer require kurama/framework:^1.0
 ```
 
 For local development of this repository:

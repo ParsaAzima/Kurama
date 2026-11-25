@@ -17,6 +17,8 @@ Start here:
 | Events | [events.md](events.md) |
 | CLI kernel | [cli.md](cli.md) |
 | Long-running worker server | [server.md](server.md) |
+| API freeze and versioning | [api-freeze.md](api-freeze.md) |
+| Changelog | [CHANGELOG.md](../CHANGELOG.md) |
 | PSR-7 interoperability bridge | [interoperability.md](interoperability.md) |
 | Configuration | [configuration.md](configuration.md) |
 | Environment variables | [environment.md](environment.md) |

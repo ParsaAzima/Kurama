@@ -9,7 +9,7 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 3. No global mutable state or hidden singletons; the container is explicit and opt-in.
 4. Every feature ships with PHPUnit tests and README documentation in the same release.
 5. New layers are opt-in: using `Router` alone keeps working exactly as before.
-6. Semantic versioning after v1.0.0; before that, minor releases may refine the API with migration notes.
+6. Semantic versioning from v1.0.0 onward; breaking changes are reserved for v2.x.
 7. No full-stack ambitions: database, auth, sessions, templates and DI containers are non-goals.
 
 ## Status overview
@@ -31,8 +31,7 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.13.0` | Advanced events and providers | Released |
 | `v0.14.0` | Long-running worker server | Released |
 | `v0.15.0` | Third-party engines and view cache | Released |
-| `v0.16.0` | API freeze and stable release | Next |
-| `v1.0.0` | Stable API | Planned |
+| `v1.0.0` | API freeze and stable release | Released |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
 
@@ -165,34 +164,22 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - File-backed rendered-view cache with TTL and `view:clear` command.
 - `Application::$view`, container bindings and controller `view()` delegation.
 
-## v0.16.0 — API freeze and stable release (next)
+## v1.0.0 — API freeze and stable release (released)
 
-Goal: improve workflow and quality gates without adding runtime dependencies.
-
-- CI checks: `php -l`, PHPUnit and a PSR-12 style check.
-- `Allow` header includes implicit `HEAD` whenever `GET` is allowed.
-- `route:list` dev command that prints registered methods, patterns and middleware.
-- Migration guide from v0.1 to v0.3+.
-
-Acceptance criteria:
-
-- Tooling lives outside `src/` and is not autoloaded at runtime.
-- Documentation clearly separates dev tools from the library.
-
-## v1.0.0 — Stable API (planned)
-
-- API review and final naming decisions.
-- Performance benchmarks published with methodology.
-- Complete migration notes from `v0.x`.
-- Long-term support policy for the `v1` line.
+- `Kurama\Version` with `1.0.0` constant and PHP 8.3 minimum.
+- Frozen public API documented in [docs/api-freeze.md](docs/api-freeze.md).
+- `CHANGELOG.md` with the full 1.0.0 summary.
+- Stable Composer constraint: `kurama/framework:^1.0`.
+- Maintained by **berlium**; version command and package metadata updated.
+- CI, benchmarks, 206 PHPUnit tests and full documentation are part of the release gate.
 
 ## Explicit non-goals
 
 These are not planned for Kurama:
 
 - Database access, ORM or query builders.
-- Authentication, authorization, sessions or cookies.
-- Template engines or view layers.
+- Authentication and authorization. Session, cookie, CSRF and template primitives are included.
+- Bundled third-party engines; adapters are provided instead.
 - Dependency injection containers or service providers.
 - Application lifecycle events, event buses or console kernels.
 - Becoming a full-stack framework.
