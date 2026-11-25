@@ -486,6 +486,8 @@ composer install
 vendor/bin/phpunit
 ```
 
+CI runs the same suite plus `composer validate` and syntax checks on PHP 8.3 via `.github/workflows/ci.yml`.
+
 ## Current limitations
 
 Not included (see [ROADMAP.md](ROADMAP.md)):

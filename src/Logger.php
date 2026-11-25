@@ -7,8 +7,22 @@ namespace Kurama;
 /** Minimal file logger with PSR-3-style level methods. No PSR dependency. */
 final class Logger
 {
-    public function __construct(private readonly string $path)
-    {
+    private const LEVELS = [
+        'emergency' => 0,
+        'alert' => 1,
+        'critical' => 2,
+        'error' => 3,
+        'warning' => 4,
+        'notice' => 5,
+        'info' => 6,
+        'debug' => 7,
+    ];
+
+    public function __construct(
+        private readonly string $path,
+        private readonly string $level = 'debug',
+        private readonly int $maxBytes = 0,
+    ) {
     }
 
     public function emergency(string $message, array $context = []): void
@@ -53,9 +67,21 @@ final class Logger
 
     public function log(string $level, string $message, array $context = []): void
     {
+        $level = strtolower($level);
+        if (!isset(self::LEVELS[$level]) || !isset(self::LEVELS[$this->level])) {
+            return;
+        }
+        if (self::LEVELS[$level] > self::LEVELS[$this->level]) {
+            return;
+        }
+
         $directory = dirname($this->path);
         if (!is_dir($directory)) {
             @mkdir($directory, 0775, true);
+        }
+
+        if ($this->maxBytes > 0 && is_file($this->path) && filesize($this->path) >= $this->maxBytes) {
+            @rename($this->path, $this->path . '.1');
         }
 
         $line = sprintf('[%s] %s %s', date('Y-m-d H:i:s'), strtoupper($level), $message);

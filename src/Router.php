@@ -47,10 +47,25 @@ final class Router
     /** @var list<callable> */
     private array $groupMiddleware = [];
 
+    /** @var array<string, string> Named constraint aliases. */
+    private array $patterns = [
+        'int' => '\d+',
+        'slug' => '[a-z0-9-]+',
+        'uuid' => '[0-9a-f-]{36}',
+        'any' => '[^/]+',
+    ];
+
     public function __construct(
         private readonly RouteCollection $routes = new RouteCollection(),
         private readonly RouteMatcher $matcher = new RouteMatcher(),
     ) {
+    }
+
+    public function pattern(string $name, string $regex): self
+    {
+        $this->patterns[$name] = $regex;
+
+        return $this;
     }
 
     public function get(string $pattern, mixed $handler): Route
@@ -110,6 +125,7 @@ final class Router
             $normalized[] = strtoupper(trim($method));
         }
 
+        $pattern = $this->expandPatterns($pattern);
         $pattern = $this->groupPrefix === ''
             ? $pattern
             : '/' . $this->groupPrefix . '/' . ltrim($pattern, '/');
@@ -207,7 +223,14 @@ final class Router
 
     private function routeForPattern(string $pattern): ?Route
     {
-        $normalized = self::normalizePath($pattern);
+        $pattern = $this->expandPatterns($pattern);
+        // A '?' inside {name?} is part of the pattern, not a query string.
+        $normalized = str_contains($pattern, '{')
+            ? '/' . trim($pattern, '/')
+            : self::normalizePath($pattern);
+        if ($normalized === '') {
+            $normalized = '/';
+        }
         foreach ($this->routes->all() as $route) {
             if ($route->pattern() === $normalized) {
                 return $route;
@@ -279,6 +302,9 @@ final class Router
             $allowed = $exception->allowedMethods();
             if (!in_array('OPTIONS', $allowed, true)) {
                 $allowed[] = 'OPTIONS';
+            }
+            if (in_array('GET', $allowed, true) && !in_array('HEAD', $allowed, true)) {
+                $allowed[] = 'HEAD';
             }
 
             $isOptions = strtoupper(trim($method ?? (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'))) === 'OPTIONS';
@@ -448,6 +474,9 @@ final class Router
         }
 
         if ($allowed !== []) {
+            if (isset($allowed['GET'])) {
+                $allowed['HEAD'] = true;
+            }
             throw new MethodNotAllowedException(array_keys($allowed), $method, $path);
         }
 
@@ -472,6 +501,19 @@ final class Router
      * Drop query strings and fragments, enforce a leading slash and ignore
      * trailing slashes (except for the root path).
      */
+    private function expandPatterns(string $pattern): string
+    {
+        return (string) preg_replace_callback(
+            '/\{([A-Za-z_][A-Za-z0-9_]*):([A-Za-z_][A-Za-z0-9_]*)\}/',
+            function (array $match): string {
+                $regex = $this->patterns[$match[2]] ?? null;
+
+                return $regex === null ? $match[0] : '{' . $match[1] . ':' . $regex . '}';
+            },
+            $pattern,
+        );
+    }
+
     /** @param list<string> $methods @return list<string> */
     private function indexMethods(array $methods): array
     {

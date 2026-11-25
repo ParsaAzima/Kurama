@@ -163,7 +163,7 @@ final class ApplicationTest extends TestCase
         $response = $app->handle(new Request('POST', '/users'));
 
         self::assertSame(405, $response->getStatus());
-        self::assertSame('GET', $response->getHeader('Allow'));
+        self::assertSame('GET, HEAD', $response->getHeader('Allow'));
     }
 
     public function testApiErrorsAreJson(): void
@@ -414,7 +414,7 @@ final class ApplicationTest extends TestCase
 
         self::assertSame(204, $response->getStatus());
         self::assertSame('', $response->getContent());
-        self::assertSame('GET, POST, OPTIONS', $response->getHeader('Allow'));
+        self::assertSame('GET, POST, HEAD, OPTIONS', $response->getHeader('Allow'));
     }
 
     public function testExplicitOptionsRouteWins(): void
@@ -444,6 +444,29 @@ final class ApplicationTest extends TestCase
         $app = AppFactory::create(['debug' => true]);
 
         self::assertSame(404, $app->handle(new Request('OPTIONS', '/missing'))->getStatus());
+    }
+
+    public function testErrorHandlerChainDelegatesToDefault(): void
+    {
+        $app = AppFactory::create(['debug' => true, 'discovery.enabled' => false]);
+        $seen = [];
+
+        $app->addErrorHandler(function (Throwable $e, Request $r, callable $next) use (&$seen): Response {
+            $seen[] = 'first';
+
+            return $next($e, $r)->withHeader('X-First', 'yes');
+        });
+        $app->addErrorHandler(function (Throwable $e, Request $r, callable $next) use (&$seen): Response {
+            $seen[] = 'second';
+
+            return $next($e, $r);
+        });
+
+        $response = $app->handle(new Request('GET', '/missing'));
+
+        self::assertSame(404, $response->getStatus());
+        self::assertSame('yes', $response->getHeader('X-First'));
+        self::assertSame(['first', 'second'], $seen);
     }
 
     public function testRunUsesExplicitMethodAndUri(): void

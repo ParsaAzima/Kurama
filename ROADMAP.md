@@ -27,7 +27,8 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.9.0` | Route caching and unnamed URL generation | Released |
 | `v0.10.0` | CLI kernel and automatic OPTIONS | Released |
 | `v0.11.0` | Interoperability and hardening | Released |
-| `v0.12.0` | Developer tooling (dev-only) | Next |
+| `v0.12.0` | Remaining weaknesses | Released |
+| `v0.13.0` | API freeze and stable release | Next |
 | `v1.0.0` | Stable API | Planned |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
@@ -130,7 +131,16 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - Extended validation: custom rules, dotted fields, `url`, `uuid`, `json`, `alpha`, `alpha_num`, `digits`, `between`, `different`, `required_if`.
 - Duck-typed PSR-7 bridge and `Application::handlePsr()`; no required PSR dependency.
 
-## v0.12.0 — Developer tooling (next)
+## v0.12.0 — Remaining weaknesses (released)
+
+- Route cache supports closures through `route.cache.closure_resolver`.
+- Optional route parameters `{id?}`, named constraint aliases and implicit HEAD in `Allow`.
+- PSR-15 middleware adapter when PSR interfaces are installed.
+- Error handler chains via `addErrorHandler()`.
+- Logger level thresholds and size rotation.
+- GitHub Actions CI: composer validate, syntax checks and PHPUnit.
+
+## v0.13.0 — API freeze and stable release (next)
 
 Goal: improve workflow and quality gates without adding runtime dependencies.
 

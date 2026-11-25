@@ -116,7 +116,7 @@ final class RouterTest extends TestCase
             $router->dispatch('POST', '/users');
             self::fail('Expected MethodNotAllowedException.');
         } catch (MethodNotAllowedException $exception) {
-            self::assertSame(['GET'], $exception->allowedMethods());
+            self::assertSame(['GET', 'HEAD'], $exception->allowedMethods());
             self::assertSame('POST', $exception->method());
             self::assertSame('/users', $exception->path());
         }
@@ -288,7 +288,7 @@ final class RouterTest extends TestCase
             $router->dispatch('OPTIONS', '/users');
             self::fail('Expected MethodNotAllowedException.');
         } catch (MethodNotAllowedException $exception) {
-            self::assertSame(['GET'], $exception->allowedMethods());
+            self::assertSame(['GET', 'HEAD'], $exception->allowedMethods());
         }
     }
 
@@ -396,6 +396,30 @@ final class RouterTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         $router->url('user.show', ['id' => 'abc']);
+    }
+
+    public function testOptionalRouteParameter(): void
+    {
+        $router = new Router();
+        $router->get('/users/{id?}', static fn (?string $id = null): string => $id ?? 'all');
+
+        self::assertSame('all', $router->dispatch('GET', '/users'));
+        self::assertSame('42', $router->dispatch('GET', '/users/42'));
+        self::assertSame('/users/42', $router->url('/users/{id?}', ['id' => 42]));
+        self::assertSame('/users', $router->url('/users/{id?}'));
+    }
+
+    public function testNamedConstraintAlias(): void
+    {
+        $router = new Router();
+        $router->pattern('int', '\d+');
+        $router->get('/users/{id:int}', static fn (string $id): string => $id);
+
+        self::assertSame('42', $router->dispatch('GET', '/users/42'));
+        self::assertSame('/users/42', $router->url('/users/{id:int}', ['id' => 42]));
+
+        $this->expectException(RouteNotFoundException::class);
+        $router->dispatch('GET', '/users/abc');
     }
 
     public function testUrlCanBeGeneratedFromPathPattern(): void

@@ -58,6 +58,33 @@ final class RouteCacheTest extends TestCase
         }
     }
 
+    public function testClosuresCanBeCachedWithResolver(): void
+    {
+        $path = sys_get_temp_dir() . '/kurama-cache-' . bin2hex(random_bytes(4)) . '.php';
+        $handlers = ['greet' => static fn (): string => 'hello'];
+        $resolver = static function (mixed $value) use ($handlers) {
+            if ($value instanceof \Closure) {
+                return 'greet';
+            }
+
+            return $handlers[$value] ?? null;
+        };
+
+        $router = new Router();
+        $router->get('/hello', $handlers['greet']);
+
+        try {
+            RouteCache::write($router, $path, null, [], $resolver);
+            $loaded = RouteCache::load($path, null, null, $resolver);
+
+            self::assertSame('hello', $loaded->dispatch('GET', '/hello'));
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+    }
+
     public function testStaleCacheIsDetected(): void
     {
         $directory = sys_get_temp_dir() . '/kurama-fresh-' . bin2hex(random_bytes(4));

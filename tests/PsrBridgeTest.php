@@ -38,6 +38,19 @@ final class PsrBridgeTest extends TestCase
         self::assertSame('{"id":"42"}', (string) $psr->getBody());
     }
 
+    public function testPsr15AdapterRequiresInterfaces(): void
+    {
+        if (interface_exists(\Psr\Http\Server\MiddlewareInterface::class)) {
+            self::markTestSkipped('PSR-15 interfaces are installed.');
+        }
+
+        $this->expectException(\InvalidArgumentException::class);
+        PsrBridge::psr15Middleware(
+            static fn ($request, $next) => Response::text('ok'),
+            new FakeResponseFactory(),
+        );
+    }
+
     public function testRejectsNonPsrObject(): void
     {
         $this->expectException(\InvalidArgumentException::class);

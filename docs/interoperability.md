@@ -24,13 +24,13 @@ $psrResponse = $app->handlePsr($psrRequest, $responseFactory);
 
 ## PSR-15 middleware
 
-Kurama's middleware signature is `fn (Request $request, callable $next): Response`, not PSR-15. You can wrap a Kurama middleware for PSR-15 stacks with an adapter of your own:
+Kurama's middleware signature is `fn (Request $request, callable $next): Response`, not PSR-15. When PSR-15 interfaces are installed, `PsrBridge::psr15Middleware()` wraps a Kurama middleware:
 
 ```php
-$kuramaMiddleware = function ($request, $next) { /* ... */ };
+$psrMiddleware = PsrBridge::psr15Middleware($kuramaMiddleware, $responseFactory);
 ```
 
-The bridge converts request/response objects; request handlers and middleware still use Kurama callables.
+Without those interfaces it throws `InvalidArgumentException`; no Composer dependency is required by Kurama itself. The adapter converts the request/response objects; request handler calls still use the original PSR request.
 
 ## Limits
 

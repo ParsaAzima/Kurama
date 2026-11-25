@@ -46,8 +46,8 @@ class Application
     /** @var list<callable> */
     private array $middleware = [];
 
-    /** @var null|callable */
-    private $errorHandler = null;
+    /** @var list<callable> */
+    private array $errorHandlers = [];
 
     /** @var array<int, callable> */
     private array $handlerCache = [];
@@ -99,7 +99,11 @@ class Application
         );
         $this->csrf = new Csrf($this->session);
         $logPath = (string) $this->configuration->get('log.path', $base . '/storage/logs/app.log');
-        $this->logger = new Logger($logPath);
+        $this->logger = new Logger(
+            $logPath,
+            (string) $this->configuration->get('log.level', 'debug'),
+            (int) $this->configuration->get('log.max_bytes', 0),
+        );
 
         $this->registerCoreBindings();
         $this->console = new Console($this);
@@ -160,6 +164,13 @@ class Application
     public function match(array|string $methods, string $pattern, mixed $handler): Route
     {
         return $this->router->match($methods, $pattern, $handler);
+    }
+
+    public function pattern(string $name, string $regex): self
+    {
+        $this->router->pattern($name, $regex);
+
+        return $this;
     }
 
     /**
@@ -279,6 +290,13 @@ class Application
         );
     }
 
+    private function closureResolver(): ?callable
+    {
+        $resolver = $this->config('route.cache.closure_resolver');
+
+        return is_callable($resolver) ? $resolver : null;
+    }
+
     /** @return list<string> */
     private function cacheSources(): array
     {
@@ -301,7 +319,12 @@ class Application
             return false;
         }
 
-        RouteCache::load($this->cachePath(), $this->router, $this->container);
+        RouteCache::load(
+            $this->cachePath(),
+            $this->router,
+            $this->container,
+            $this->closureResolver(),
+        );
 
         return true;
     }
@@ -314,6 +337,7 @@ class Application
             $this->cachePath(),
             $this->container,
             $this->cacheSources(),
+            $this->closureResolver(),
         );
     }
 
@@ -341,12 +365,24 @@ class Application
         return Response::html($this->template->render($template, $data, $layout), $status);
     }
 
-    /** Override default error rendering. */
-    public function setErrorHandler(callable $handler): self
+    /** Add an error handler to the chain: fn (Throwable, Request, callable $next): Response */
+    public function addErrorHandler(callable $handler): self
     {
-        $this->errorHandler = $handler;
+        $this->errorHandlers[] = $handler;
 
         return $this;
+    }
+
+    /** Replace the whole chain with a single handler (legacy signature). */
+    public function setErrorHandler(callable $handler): self
+    {
+        $this->errorHandlers = [];
+
+        return $this->addErrorHandler(static function (Throwable $e, Request $request, callable $next) use ($handler) {
+            $result = $handler($e, $request);
+
+            return $result instanceof Response ? $result : Response::make($result);
+        });
     }
 
     public function handle(Request $request): Response
@@ -393,6 +429,9 @@ class Application
                 $allowed = $exception->allowedMethods();
                 if (!in_array('OPTIONS', $allowed, true)) {
                     $allowed[] = 'OPTIONS';
+                }
+                if (in_array('GET', $allowed, true) && !in_array('HEAD', $allowed, true)) {
+                    $allowed[] = 'HEAD';
                 }
                 $response = Response::make('', 204, ['Allow' => implode(', ', $allowed)]);
             } else {
@@ -500,12 +539,19 @@ class Application
 
     private function renderError(Throwable $exception, Request $request): Response
     {
-        if ($this->errorHandler !== null) {
-            $result = ($this->errorHandler)($exception, $request);
-
-            return $result instanceof Response ? $result : Response::make($result);
+        $next = fn (Throwable $e, Request $r): Response => $this->defaultErrorResponse($e, $r);
+        foreach (array_reverse($this->errorHandlers) as $handler) {
+            $previous = $next;
+            $next = static fn (Throwable $e, Request $r): Response => $handler($e, $r, $previous);
         }
 
+        $response = $next($exception, $request);
+
+        return $response instanceof Response ? $response : Response::make($response);
+    }
+
+    private function defaultErrorResponse(Throwable $exception, Request $request): Response
+    {
         $debug = (bool) $this->configuration->get('debug', false);
         $status = 500;
         $headers = [];

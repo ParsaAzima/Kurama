@@ -74,7 +74,7 @@ final class RouteMatcherTest extends TestCase
             $matcher->match($collection, 'PUT', '/users');
             self::fail('Expected MethodNotAllowedException.');
         } catch (MethodNotAllowedException $exception) {
-            self::assertSame(['GET', 'POST'], $exception->allowedMethods());
+            self::assertSame(['GET', 'POST', 'HEAD'], $exception->allowedMethods());
         }
     }
 

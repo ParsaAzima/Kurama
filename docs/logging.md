@@ -7,6 +7,8 @@
 ```php
 $app = AppFactory::create([
     'log.path' => __DIR__ . '/../storage/logs/app.log',
+    'log.level' => 'warning',     // emergency..debug
+    'log.max_bytes' => 10485760,  // rotate to .1 when reached
 ]);
 ```
 

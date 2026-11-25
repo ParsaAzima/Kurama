@@ -37,6 +37,9 @@ final class RouteMatcher
         }
 
         if ($allowed !== []) {
+            if (isset($allowed['GET'])) {
+                $allowed['HEAD'] = true;
+            }
             throw new MethodNotAllowedException(array_keys($allowed), $method, $path);
         }
 

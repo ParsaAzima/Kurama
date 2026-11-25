@@ -81,4 +81,37 @@ final class PsrBridge
 
         return $psr;
     }
+
+    /** Wrap a Kurama middleware as a PSR-15 middleware when those interfaces exist. */
+    public static function psr15Middleware(callable $middleware, object $responseFactory): object
+    {
+        if (
+            !interface_exists(\Psr\Http\Server\MiddlewareInterface::class)
+            || !interface_exists(\Psr\Http\Server\RequestHandlerInterface::class)
+        ) {
+            throw new \InvalidArgumentException('PSR-15 interfaces are not installed.');
+        }
+
+        return new class($middleware, $responseFactory) implements \Psr\Http\Server\MiddlewareInterface {
+            public function __construct(
+                private readonly mixed $middleware,
+                private readonly object $responseFactory,
+            ) {
+            }
+
+            public function process(
+                \Psr\Http\Message\ServerRequestInterface $request,
+                \Psr\Http\Server\RequestHandlerInterface $handler,
+            ): \Psr\Http\Message\ResponseInterface {
+                $kuramaRequest = PsrBridge::toKuramaRequest($request);
+                $next = function () use ($handler, $request): Response {
+                    return PsrBridge::toKuramaResponse($handler->handle($request));
+                };
+
+                $response = ($this->middleware)($kuramaRequest, $next);
+
+                return PsrBridge::toPsrResponse($response, $this->responseFactory);
+            }
+        };
+    }
 }

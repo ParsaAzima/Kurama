@@ -1,35 +1,33 @@
 # Limitations and non-goals
 
-Kurama is a router-first micro framework. The following are intentionally absent.
+Kurama is a router-first micro framework. The following are still intentionally absent or simplified.
 
 ## Not implemented
 
 - Database access, ORM or query builders.
 - Authentication and authorization. Session and cookie primitives are included, but no user provider or guard.
 - Third-party template engines (Twig, Blade); only the built-in native-PHP engine is supported.
-- Layout inheritance, template caching and auto-escaping by default; call `escape()` / `e()` explicitly.
+- Template auto-escaping, real inheritance and component slots; call `escape()` / `e()` and use manual layouts.
 - Container tags, compiler passes and PSR-11 interface dependencies; the container stays explicit.
-- Console kernels and a full event subsystem with queued/async listeners; the event bus is synchronous and in-process.
-- Full PSR-7 / PSR-15 implementation. A duck-typed request/response bridge exists, but Kurama's own objects are not PSR interfaces and PSR-15 middleware signatures are not implemented.
+- Async/queued event listeners and provider dependency declarations; providers boot in registration order.
+- Full PSR-7 implementation. A duck-typed bridge and a PSR-15 middleware adapter exist when those interfaces are installed, but Kurama's own objects are not PSR interfaces.
 - Global helper functions such as `app()` or `url_for()`; use the instance methods instead.
-- Nothing left from the original Phase 1–4 limitation list; CLI and automatic OPTIONS are included.
-- Threaded/async request handling and long-running worker servers; Kurama targets standard PHP request lifecycle and CLI scripts.
+- Threaded/async request handling and long-running worker servers; Kurama targets the standard PHP request lifecycle and CLI scripts.
 
 ## Deliberate simplifications
 
-- `Body` is not a stream; it supports `write()` and string casting only.
+- `Body` is not a stream; it supports `write()` and string casting only. PSR conversion materializes the full string.
 - `Request` parses JSON and form bodies itself; there is no body-parser middleware layer.
-- Controller dependencies must be passed manually or injected by subclassing; there is no container.
-- Error rendering is a single callable hook, not a chain of renderers.
-- Route constraints are regex fragments with safety checks, not a full validation library.
+- Controllers are resolved by the small container, but there is no automatic interface-to-implementation binding convention.
+- Route constraints are regex fragments with safety checks; named aliases like `int` and `slug` are available.
+- Session storage is native PHP only; CSRF uses a single session token without per-form scoping.
+- Logger writes file lines with rotation and a level threshold, but does not implement PSR-3 placeholders.
+
+## Resolved from the original limitation list
+
+- CLI kernel, automatic OPTIONS responses, route caching, unnamed URL generation, providers, auto-discovery and events are all implemented.
+- Cache invalidation, closure resolvers, error handler chains and logger rotation are now included.
 
 ## Planned, not promised
 
-See [ROADMAP.md](../ROADMAP.md) for the current plan:
-
-- CI and PSR-12 checks.
-- `Allow` header including implicit HEAD.
-- `route:list` dev command.
-- API freeze and v1.0.0.
-
-Anything not in the roadmap and not in `src/` should be treated as out of scope.
+See [ROADMAP.md](../ROADMAP.md) for the current plan: API freeze, stable release tagging and dev tooling. Anything not in the roadmap and not in `src/` should be treated as out of scope.

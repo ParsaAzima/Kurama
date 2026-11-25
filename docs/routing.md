@@ -52,6 +52,8 @@ $app->get('/products/{slug}', $handler);
 
 A placeholder matches exactly one URL segment. Parameters are strings and are passed to handlers in declaration order. Percent-encoded values are decoded with `rawurldecode()`, so `/products/a%2Fb` yields one parameter `a/b`.
 
+A trailing `?` makes a parameter optional: `/users/{id?}` matches both `/users` and `/users/42`. Named constraint aliases (`int`, `slug`, `uuid`, `any`) can be used as `{id:int}` and extended with `Router::pattern('name', $regex)`.
+
 Static routes are compared as plain strings before any regex is attempted.
 
 ## Constraints
@@ -155,6 +157,20 @@ The first request registers the routes and writes a plain PHP file. Later reques
 
 The cache records a signature of `route.cache.sources` (file mtimes and sizes). When any source changes, the cache is considered stale and `loadRoutes()` re-registers routes and rewrites the cache automatically. Use `composer console -- cache:clear` to delete it manually.
 
-Cacheable handlers must be function names, `Class@method`, `[Class::class, 'method']` or invokable classes. **Closures and anonymous classes cannot be cached** and throw `InvalidArgumentException`; use class-based handlers when caching is enabled. Middleware follows the same rule.
+Cacheable handlers may be function names, `Class@method`, `[Class::class, 'method']`, invokable classes, or **closures with a resolver**. Anonymous classes still cannot be cached.
+
+Provide `route.cache.closure_resolver` as a callable that maps a `Closure` to a string id when writing, and maps that id back to a callable when loading:
+
+```php
+$handlers = ['greet' => fn () => 'hello'];
+
+$resolver = static function (mixed $value) use ($handlers) {
+    return $value instanceof Closure ? 'greet' : ($handlers[$value] ?? null);
+};
+
+$app = AppFactory::create(['route.cache.closure_resolver' => $resolver]);
+```
+
+Without a resolver, closures throw `InvalidArgumentException`. Middleware follows the same rule.
 
 The in-memory static dispatch index and last-request memo remain active after loading a cache, so caching does not reduce runtime throughput.

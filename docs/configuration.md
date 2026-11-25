@@ -58,6 +58,9 @@ Dotted keys passed to `load()` are normalized into nested arrays, so `['views.pa
 | `session.name` | PHP session name. | `kurama_session` |
 | `session.native` | Use native PHP sessions. | `true` |
 | `log.path` | Log file location. | `<project root>/storage/logs/app.log` |
+| `log.level` | Minimum level emitted. | `debug` |
+| `log.max_bytes` | Rotate file when size reached; 0 disables. | `0` |
+| `route.cache.closure_resolver` | Optional callable mapping closures ↔ ids. | none |
 | `providers` | Explicit provider class list. | `[]` |
 | `discovery.enabled` | Read providers from composer extras. | `true` |
 | `route.cache.enabled` | Write/load compiled route definitions. | `false` |

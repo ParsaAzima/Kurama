@@ -15,7 +15,7 @@ final class Route
 {
     private const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'ANY'];
 
-    private const PLACEHOLDER = '/\{([A-Za-z_][A-Za-z0-9_]*)(?::((?:[^{}]|\{[^{}]*\})*))?\}/';
+    private const PLACEHOLDER = '/\{([A-Za-z_][A-Za-z0-9_]*)(\?)?(?::((?:[^{}]|\{[^{}]*\})*))?\}/';
 
     private readonly string $pattern;
 
@@ -33,6 +33,8 @@ final class Route
     private readonly string $regex;
 
     private readonly bool $hasParameters;
+
+    private readonly bool $hasOptional;
 
     private readonly int $slashes;
 
@@ -148,7 +150,7 @@ final class Route
         }
 
         // Cheap rejection before PCRE: a parameter cannot add separators.
-        if (substr_count($path, '/') !== $this->slashes) {
+        if (!$this->hasOptional && substr_count($path, '/') !== $this->slashes) {
             return null;
         }
 
@@ -158,6 +160,9 @@ final class Route
 
         $parameters = [];
         foreach ($this->parameterNames as $name) {
+            if (!isset($matches[$name]) || $matches[$name] === '') {
+                continue;
+            }
             $parameters[$name] = rawurldecode($matches[$name]);
         }
 
@@ -171,11 +176,15 @@ final class Route
      */
     public function uri(array $params = []): string
     {
-        return preg_replace_callback(
+        $uri = preg_replace_callback(
             self::PLACEHOLDER,
             function (array $match) use ($params): string {
                 $name = $match[1];
-                if (!array_key_exists($name, $params)) {
+                $optional = ($match[2] ?? '') === '?';
+                if (!array_key_exists($name, $params) || $params[$name] === null || $params[$name] === '') {
+                    if ($optional) {
+                        return '';
+                    }
                     throw new InvalidArgumentException("Missing route parameter [{$name}].");
                 }
 
@@ -191,6 +200,10 @@ final class Route
             },
             $this->pattern,
         );
+
+        $uri = (string) preg_replace('~/+~', '/', $uri);
+
+        return $uri === '/' ? '/' : rtrim($uri, '/');
     }
 
     /** Accept callables, [Controller::class, 'method'] and 'Controller@method'. */
@@ -247,8 +260,20 @@ final class Route
             throw new InvalidArgumentException('Route pattern must begin with "/".');
         }
 
-        if (str_contains($pattern, '?') || str_contains($pattern, '#') || preg_match('/\s/', $pattern) === 1) {
-            throw new InvalidArgumentException('Route pattern must not contain query strings, fragments or whitespace.');
+        if (str_contains($pattern, '#') || preg_match('/\s/', $pattern) === 1) {
+            throw new InvalidArgumentException('Route pattern must not contain fragments or whitespace.');
+        }
+
+        preg_match_all(self::PLACEHOLDER, $pattern, $tokens, PREG_OFFSET_CAPTURE);
+        $literal = '';
+        $cursor = 0;
+        foreach ($tokens[0] as [$text, $position]) {
+            $literal .= substr($pattern, $cursor, $position - $cursor);
+            $cursor = $position + strlen($text);
+        }
+        $literal .= substr($pattern, $cursor);
+        if (str_contains($literal, '?')) {
+            throw new InvalidArgumentException('Route pattern must not contain a query string.');
         }
 
         if ($pattern !== '/' && str_contains($pattern, '//')) {
@@ -282,13 +307,15 @@ final class Route
         $regex = '';
         $offset = 0;
         $previousEnd = null;
+        $hasOptional = false;
         $names = [];
         $constraints = [];
 
         foreach ($matches[0] as $index => $token) {
             [$text, $position] = $token;
             $name = $matches[1][$index][0];
-            $constraint = $matches[2][$index][0] ?? '';
+            $optional = ($matches[2][$index][0] ?? '') === '?';
+            $constraint = $matches[3][$index][0] ?? '';
 
             if (str_contains($text, ':') && $constraint === '') {
                 throw new InvalidArgumentException("Empty constraint for [{$name}].");
@@ -307,9 +334,22 @@ final class Route
             }
 
             $expression = $constraint !== '' ? '(?:' . $constraint . ')' : '[^/]+';
-            $regex .= preg_quote(substr($pattern, $offset, $position - $offset), '~');
-            $regex .= '(?P<' . $name . '>' . $expression . ')';
+            $before = substr($pattern, $offset, $position - $offset);
 
+            if ($optional && str_ends_with($before, '/')) {
+                $regex .= preg_quote(substr($before, 0, -1), '~');
+                $regex .= '(?:/(?P<' . $name . '>' . $expression . '))?';
+            } elseif ($optional) {
+                $regex .= preg_quote($before, '~');
+                $regex .= '(?P<' . $name . '>' . $expression . ')?';
+            } else {
+                $regex .= preg_quote($before, '~');
+                $regex .= '(?P<' . $name . '>' . $expression . ')';
+            }
+
+            if ($optional) {
+                $hasOptional = true;
+            }
             $names[$name] = true;
             $constraints[$name] = $constraint !== '' ? $constraint : '[^/]+';
             $previousEnd = $position + strlen($text);
@@ -320,6 +360,7 @@ final class Route
         $this->parameterNames = array_keys($names);
         $this->constraints = $constraints;
         $this->hasParameters = $names !== [];
+        $this->hasOptional = $hasOptional;
         $this->slashes = substr_count($this->pattern, '/');
 
         return '~^' . $regex . '$~D';

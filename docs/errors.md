@@ -66,6 +66,18 @@ $app->setErrorHandler(
 
 The callback receives the original exception and the request. It may return a `Response` or any value that `Response::make()` accepts. Once set, it replaces the default rendering completely, so handle all statuses you care about.
 
+For a chain of renderers, use `addErrorHandler()`. Each handler receives `($exception, $request, $next)` and may delegate:
+
+```php
+$app->addErrorHandler(function (Throwable $e, Request $r, callable $next): Response {
+    $response = $next($e, $r);
+
+    return $response->withHeader('X-Error-Handler', 'active');
+});
+```
+
+Handlers wrap in registration order; the default renderer is always the final handler.
+
 ## Common failure cases
 
 | Failure | Result |

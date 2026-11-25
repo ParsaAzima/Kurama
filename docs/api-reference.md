@@ -31,7 +31,9 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `register(string\|ServiceProviderInterface): self` | Register a provider. |
 | `boot(): self` / `isBooted(): bool` | Boot providers once / check state. |
 | `render(string $template, array $data = [], int $status = 200, ?string $layout = null): Response` | Render a template into an HTML response. |
-| `setErrorHandler(callable $handler): self` | Set custom error renderer. |
+| `setErrorHandler(callable $handler): self` | Replace the error chain with one handler. |
+| `addErrorHandler(callable $handler): self` | Append an error handler to the chain. |
+| `pattern(string $name, string $regex): self` | Define a named constraint alias. |
 | `handle(Request $request): Response` | Dispatch without sending output. |
 | `run(?Request $request = null): void` | Dispatch and send response. |
 | `router` (public readonly `Router`) | Underlying router. |
@@ -141,7 +143,8 @@ See [routing.md](routing.md) for the route caching section.
 | `RouteCache::export(Router $router): array` | Return the export array. |
 | `RouteCache::load(string $path, ?Router $router = null, ?Container $container = null): Router` | Rebuild a router from a cache file. |
 | `RouteCache::isFresh(string $path, array $sources): bool`, `signature(array $sources): string` | Staleness checks. |
-| `PsrBridge` | `isPsrRequest()`, `toKuramaRequest()`, `toKuramaResponse()`, `toPsrResponse()`. |
+| `PsrBridge` | `isPsrRequest()`, `toKuramaRequest()`, `toKuramaResponse()`, `toPsrResponse()`, `psr15Middleware()`. |
+| `Logger` | Level methods, `log()`, optional level threshold and rotation. |
 
 ## Providers, discovery and events
 

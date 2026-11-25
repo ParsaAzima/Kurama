@@ -15,6 +15,8 @@ return [
     'session.name' => 'kurama_session',
     'session.native' => true,
     'log.path' => dirname(__DIR__) . '/storage/logs/app.log',
+    'log.level' => 'debug',
+    'log.max_bytes' => 0,
 
     'providers' => [],
     'discovery.enabled' => true,
