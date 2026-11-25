@@ -30,6 +30,7 @@ final class Request
         public readonly array $cookies = [],
         public readonly array $files = [],
         public readonly array $params = [],
+        private readonly string $rawBody = '',
     ) {
     }
 
@@ -37,12 +38,14 @@ final class Request
     {
         $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+        $raw = (string) (file_get_contents('php://input') ?: '');
 
         return new self(
             method: $method,
             uri: $uri,
             query: $_GET ?? [],
-            body: self::parseBody($method, $_SERVER),
+            body: self::parseBody($method, $_SERVER, $raw),
+            rawBody: $raw,
             headers: self::captureHeaders($_SERVER),
             server: $_SERVER,
             cookies: $_COOKIE ?? [],
@@ -160,7 +163,13 @@ final class Request
             $this->cookies,
             $this->files,
             $params,
+            $this->rawBody,
         );
+    }
+
+    public function getBody(): string
+    {
+        return $this->rawBody;
     }
 
     /** @return array<string, string> */
@@ -179,10 +188,9 @@ final class Request
     }
 
     /** @return array<string, mixed> */
-    private static function parseBody(string $method, array $server): array
+    private static function parseBody(string $method, array $server, string $raw = ''): array
     {
         $contentType = strtolower((string) ($server['HTTP_CONTENT_TYPE'] ?? $server['CONTENT_TYPE'] ?? ''));
-        $raw = (string) (file_get_contents('php://input') ?: '');
 
         if (str_contains($contentType, 'json')) {
             $decoded = json_decode($raw, true);

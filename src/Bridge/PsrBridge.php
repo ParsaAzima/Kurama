@@ -4,77 +4,97 @@ declare(strict_types=1);
 
 namespace Kurama\Bridge;
 
+use Kurama\Http\Response as PsrResponse;
+use Kurama\Http\ServerRequest as PsrServerRequest;
 use Kurama\Request;
 use Kurama\Response;
+use Psr\Http\Message\ResponseFactoryInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
-/**
- * Duck-typed converters for PSR-7 style objects.
- *
- * Kurama does not depend on psr/http-message; these methods work with any
- * object exposing the PSR-7 getters, so the dependency stays optional.
- */
+/** Conversions between Kurama's lightweight objects and full PSR-7 messages. */
 final class PsrBridge
 {
     public static function isPsrRequest(object $request): bool
     {
-        foreach (['getMethod', 'getUri', 'getHeaders', 'getQueryParams', 'getParsedBody'] as $method) {
-            if (!method_exists($request, $method)) {
-                return false;
-            }
-        }
-
-        return true;
+        return $request instanceof ServerRequestInterface;
     }
 
     public static function toKuramaRequest(object $request): Request
     {
-        if (!self::isPsrRequest($request)) {
-            throw new \InvalidArgumentException('Object does not look like a PSR-7 request.');
+        if (!$request instanceof ServerRequestInterface) {
+            throw new \InvalidArgumentException('Expected a PSR-7 ServerRequestInterface.');
         }
 
         $headers = [];
         foreach ($request->getHeaders() as $name => $values) {
-            $headers[$name] = implode(', ', array_map('strval', (array) $values));
+            $headers[$name] = implode(', ', array_map('strval', $values));
         }
 
         $body = $request->getParsedBody();
 
         return new Request(
-            method: strtoupper((string) $request->getMethod()),
-            uri: (string) $request->getUri(),
-            query: (array) $request->getQueryParams(),
+            method: $request->getMethod(),
+            uri: $request->getUri()->getPath() !== ''
+                ? $request->getUri()->getPath()
+                : '/',
+            query: $request->getQueryParams(),
             body: is_object($body) ? (array) get_object_vars($body) : (array) $body,
             headers: $headers,
-            server: method_exists($request, 'getServerParams') ? (array) $request->getServerParams() : [],
-            cookies: method_exists($request, 'getCookieParams') ? (array) $request->getCookieParams() : [],
-            files: method_exists($request, 'getUploadedFiles') ? (array) $request->getUploadedFiles() : [],
+            server: $request->getServerParams(),
+            cookies: $request->getCookieParams(),
+            files: $request->getUploadedFiles(),
         );
+    }
+
+    public static function toPsrRequest(Request $request): ServerRequestInterface
+    {
+        return (new PsrServerRequest(
+            $request->method(),
+            $request->uri,
+            (string) $request->getBody(),
+        ))
+            ->withQueryParams($request->getQueryParams())
+            ->withParsedBody($request->getParsedBody())
+            ->withCookieParams($request->cookies)
+            ->withUploadedFiles($request->files);
     }
 
     public static function toKuramaResponse(object $psrResponse): Response
     {
+        if (!$psrResponse instanceof ResponseInterface) {
+            throw new \InvalidArgumentException('Expected a PSR-7 ResponseInterface.');
+        }
+
         $headers = [];
         foreach ($psrResponse->getHeaders() as $name => $values) {
-            $headers[$name] = implode(', ', array_map('strval', (array) $values));
+            $headers[$name] = implode(', ', array_map('strval', $values));
         }
 
         return new Response(
             (string) $psrResponse->getBody(),
-            (int) $psrResponse->getStatusCode(),
+            $psrResponse->getStatusCode(),
             $headers,
         );
     }
 
-    /** Convert using any PSR-17 ResponseFactoryInterface implementation. */
-    public static function toPsrResponse(Response $response, object $responseFactory): object
-    {
-        if (!method_exists($responseFactory, 'createResponse')) {
-            throw new \InvalidArgumentException('Object does not look like a PSR-17 response factory.');
+    public static function toPsrResponse(
+        Response $response,
+        ?object $responseFactory = null,
+    ): ResponseInterface {
+        if ($responseFactory instanceof ResponseFactoryInterface) {
+            $psr = $responseFactory->createResponse($response->getStatus());
+        } elseif ($responseFactory !== null && method_exists($responseFactory, 'createResponse')) {
+            $psr = $responseFactory->createResponse($response->getStatus());
+        } else {
+            $psr = new PsrResponse($response->getStatus());
         }
 
-        $psr = $responseFactory->createResponse($response->getStatus());
         foreach ($response->getHeaders() as $name => $value) {
-            $psr = $psr->withHeader($name, $value);
+            $psr = $psr->withHeader($name, explode(', ', $value));
+        }
+        foreach ($response->getCookies() as $cookie) {
+            $psr = $psr->withAddedHeader('Set-Cookie', $cookie->toHeader());
         }
 
         $psr->getBody()->write($response->getContent());
@@ -82,8 +102,8 @@ final class PsrBridge
         return $psr;
     }
 
-    /** Wrap a Kurama middleware as a PSR-15 middleware when those interfaces exist. */
-    public static function psr15Middleware(callable $middleware, object $responseFactory): object
+    /** Wrap a Kurama middleware as PSR-15 when those interfaces are installed. */
+    public static function psr15Middleware(callable $middleware, ?object $responseFactory = null): object
     {
         if (
             !interface_exists(\Psr\Http\Server\MiddlewareInterface::class)
@@ -95,7 +115,7 @@ final class PsrBridge
         return new class($middleware, $responseFactory) implements \Psr\Http\Server\MiddlewareInterface {
             public function __construct(
                 private readonly mixed $middleware,
-                private readonly object $responseFactory,
+                private readonly ?object $responseFactory,
             ) {
             }
 
@@ -104,9 +124,7 @@ final class PsrBridge
                 \Psr\Http\Server\RequestHandlerInterface $handler,
             ): \Psr\Http\Message\ResponseInterface {
                 $kuramaRequest = PsrBridge::toKuramaRequest($request);
-                $next = function () use ($handler, $request): Response {
-                    return PsrBridge::toKuramaResponse($handler->handle($request));
-                };
+                $next = static fn (): Response => PsrBridge::toKuramaResponse($handler->handle($request));
 
                 $response = ($this->middleware)($kuramaRequest, $next);
 

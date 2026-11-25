@@ -23,7 +23,8 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `urlForHandler(mixed $handler, array $params = []): string` | Generate a URL from a handler. |
 | `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
 | `runConsole(?array $argv = null): int` | Run the CLI kernel and return an exit code. |
-| `handlePsr(object $psrRequest, object $responseFactory): object` | Handle a PSR-7-like request and return a PSR-7-like response. |
+| `handlePsr7(ServerRequestInterface $request): ResponseInterface` | Full PSR-7 request handling. |
+| `handlePsr(object $psrRequest, object $responseFactory): object` | Legacy duck-typed bridge. |
 | `prepareForRequest(): void` | Reset per-request state in a long-running worker. |
 | `console` (public readonly `Kurama\Console\Console`) | Console kernel. |
 | `config(string $key, mixed $default = null)` / `env(...)` | Read configuration / environment values. |
@@ -62,7 +63,8 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `urlForHandler(mixed $handler, array $params = []): string` | Generate a URL from a handler. |
 | `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
 | `runConsole(?array $argv = null): int` | Run the CLI kernel and return an exit code. |
-| `handlePsr(object $psrRequest, object $responseFactory): object` | Handle a PSR-7-like request and return a PSR-7-like response. |
+| `handlePsr7(ServerRequestInterface $request): ResponseInterface` | Full PSR-7 request handling. |
+| `handlePsr(object $psrRequest, object $responseFactory): object` | Legacy duck-typed bridge. |
 | `prepareForRequest(): void` | Reset per-request state in a long-running worker. |
 | `console` (public readonly `Kurama\Console\Console`) | Console kernel. |
 | `resolve(string $method, string $uri): ?array` | `['route' => Route, 'parameters' => array]` or `null`. |
@@ -127,6 +129,20 @@ See [response.md](response.md) for details.
 | `__construct(string $content = '')` | Create with initial content. |
 | `write(string $data): self` | Append data. |
 | `__toString(): string` | Current content. |
+
+## PSR-7 / PSR-17
+
+See [interoperability.md](interoperability.md).
+
+| Class | Implements |
+| --- | --- |
+| `Kurama\Http\Uri` | `UriInterface` |
+| `Kurama\Http\Stream` | `StreamInterface` |
+| `Kurama\Http\Request` | `RequestInterface` |
+| `Kurama\Http\ServerRequest` | `ServerRequestInterface` |
+| `Kurama\Http\Response` | `ResponseInterface` |
+| `Kurama\Http\UploadedFile` | `UploadedFileInterface` |
+| `UriFactory`, `StreamFactory`, `RequestFactory`, `ServerRequestFactory`, `ResponseFactory`, `UploadedFileFactory` | Corresponding PSR-17 factory interfaces |
 
 ## View engines
 

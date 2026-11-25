@@ -1,40 +1,59 @@
-# Interoperability
+# PSR-7 interoperability
 
-Kurama does not depend on `psr/http-message` or `psr/http-server-handler`. It does provide a small duck-typed bridge for projects that already use PSR-7 style objects.
+Kurama provides a complete PSR-7 implementation in `Kurama\Http\*` and PSR-17 factories. The original lightweight `Kurama\Request` / `Kurama\Response` remain unchanged, so existing code keeps working.
 
-## PSR-7 bridge
+## Dependencies
 
-```php
-use Kurama\Bridge\PsrBridge;
+- `psr/http-message:^2.0`
+- `psr/http-factory:^1.1`
 
-$kuramaRequest = PsrBridge::toKuramaRequest($psrRequest);
-$psrResponse = PsrBridge::toPsrResponse($kuramaResponse, $psr17ResponseFactory);
-$kuramaResponse = PsrBridge::toKuramaResponse($psrResponse);
-```
+## PSR-7 classes
 
-`PsrBridge::isPsrRequest($object)` checks for the expected getters before conversion. A PSR-17 response factory is any object with `createResponse(int $status)`.
+| Class | Interface |
+| --- | --- |
+| `Kurama\Http\Uri` | `Psr\Http\Message\UriInterface` |
+| `Kurama\Http\Stream` | `Psr\Http\Message\StreamInterface` |
+| `Kurama\Http\Request` | `Psr\Http\Message\RequestInterface` |
+| `Kurama\Http\ServerRequest` | `Psr\Http\Message\ServerRequestInterface` |
+| `Kurama\Http\Response` | `Psr\Http\Message\ResponseInterface` |
+| `Kurama\Http\UploadedFile` | `Psr\Http\Message\UploadedFileInterface` |
 
-## Handling a PSR request directly
+All `with*` methods return immutable clones. Headers are canonicalized to lowercase keys and exposed as arrays of values.
 
-```php
-$psrResponse = $app->handlePsr($psrRequest, $responseFactory);
-```
+## PSR-17 factories
 
-`handlePsr()` converts the request, runs the normal Kurama pipeline and converts the response back. It does not emit output.
-
-## PSR-15 middleware
-
-Kurama's middleware signature is `fn (Request $request, callable $next): Response`, not PSR-15. When PSR-15 interfaces are installed, `PsrBridge::psr15Middleware()` wraps a Kurama middleware:
+`UriFactory`, `StreamFactory`, `RequestFactory`, `ServerRequestFactory`, `ResponseFactory` and `UploadedFileFactory` live under `Kurama\Http\`.
 
 ```php
-$psrMiddleware = PsrBridge::psr15Middleware($kuramaMiddleware, $responseFactory);
+use Kurama\Http\ResponseFactory;
+
+$factory = new ResponseFactory();
+$response = $factory->createResponse(404)
+    ->withHeader('X-Test', 'yes');
+$response->getBody()->write('Not found');
 ```
 
-Without those interfaces it throws `InvalidArgumentException`; no Composer dependency is required by Kurama itself. The adapter converts the request/response objects; request handler calls still use the original PSR request.
+## Using PSR-7 with Application
 
-## Limits
+```php
+use Kurama\AppFactory;
+use Kurama\Http\ServerRequest;
 
-- This is a converter, **not a PSR-7 implementation**.
-- `$response->getBody()->write()` on a Kurama `Body` is not a stream; PSR conversion materializes the full string.
-- Uploaded files and streamed responses are not fully represented.
-- No dependency is installed for you; bring your own PSR-7 objects/factory.
+$app = AppFactory::create();
+$response = $app->handlePsr7(new ServerRequest('GET', '/users/42'));
+echo $response->getStatusCode();
+```
+
+`handlePsr7()` converts the PSR request into Kurama's lightweight request, runs the normal pipeline and returns a PSR-7 response.
+
+## Bridge
+
+`Kurama\Bridge\PsrBridge` converts between both representations:
+
+- `toKuramaRequest()`, `toPsrRequest()`
+- `toKuramaResponse()`, `toPsrResponse()`
+- `psr15Middleware()` when PSR-15 interfaces are installed
+
+## PSR-15
+
+Kurama does not require `psr/http-server-handler`. If you install it, `PsrBridge::psr15Middleware($middleware, $factory)` wraps a Kurama middleware as a PSR-15 middleware. Without those interfaces it throws a clear `InvalidArgumentException`.

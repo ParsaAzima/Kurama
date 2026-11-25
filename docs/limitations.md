@@ -10,7 +10,7 @@ Kurama is a router-first micro framework. The following are still intentionally 
 - Template auto-escaping, real inheritance and component slots; call `escape()` / `e()` and use manual layouts. Rendered-output caching is included.
 - Container tags, compiler passes and PSR-11 interface dependencies; the container stays explicit.
 - True background processes for events. Deferred/queued events flush at the end of `run()`; provider dependencies are ordered and tags are resolved on demand.
-- Full PSR-7 implementation. A duck-typed bridge and a PSR-15 middleware adapter exist when those interfaces are installed, but Kurama's own objects are not PSR interfaces.
+- PSR-15 middleware library. A bridge adapter exists when `psr/http-server-handler` is installed, but Kurama's native middleware signature remains `($request, $next)`.
 - Global helper functions such as `app()` or `url_for()`; use the instance methods instead.
 - Real OS threads and HTTP/2/TLS in the built-in worker. It uses cooperative async I/O and optional `pcntl` processes; use a reverse proxy for TLS/HTTP2 in production.
 

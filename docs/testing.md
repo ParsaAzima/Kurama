@@ -10,7 +10,7 @@ composer test
 # or: vendor/bin/phpunit
 ```
 
-Configuration lives in `phpunit.xml`. The suite currently has 207 tests and 444 assertions. `.github/workflows/ci.yml` runs `composer validate`, syntax checks and PHPUnit on PHP 8.3.
+Configuration lives in `phpunit.xml`. The suite currently has 215 tests and 485 assertions. `.github/workflows/ci.yml` runs `composer validate`, syntax checks and PHPUnit on PHP 8.3.
 
 ## Test files
 
@@ -39,6 +39,7 @@ Configuration lives in `phpunit.xml`. The suite currently has 207 tests and 444 
 | `tests/ServerTest.php` | Incremental HTTP parsing and response serialization. |
 | `tests/ViewTest.php` | Engine adapters, extension dispatch, view cache and custom engines. |
 | `tests/VersionTest.php` | Stable version constants. |
+| `tests/Psr7Test.php` | PSR-7 messages, streams, URIs, uploads and PSR-17 factories. |
 
 ## Testing an application without sending output
 

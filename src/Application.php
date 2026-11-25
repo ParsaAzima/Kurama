@@ -17,6 +17,8 @@ use Kurama\Exceptions\ValidationException;
 use Kurama\View\CallableRenderer;
 use Kurama\View\Renderer;
 use Kurama\View\ViewCache;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Throwable;
 
 /**
@@ -580,6 +582,12 @@ class Application
     public function runConsole(?array $argv = null): int
     {
         return $this->console->run($argv);
+    }
+
+    /** Handle a real PSR-7 ServerRequest and return a PSR-7 Response. */
+    public function handlePsr7(ServerRequestInterface $request): ResponseInterface
+    {
+        return PsrBridge::toPsrResponse($this->handle(PsrBridge::toKuramaRequest($request)));
     }
 
     /** Handle a PSR-7-like request and return a PSR-7-like response. */

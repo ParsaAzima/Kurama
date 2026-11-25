@@ -324,10 +324,12 @@ Custom commands extend `Kurama\Console\Command` and are registered with `$app->c
 
 ## Interoperability
 
-Kurama is not PSR-7 compliant, but it can convert to/from PSR-7 style objects without requiring the PSR packages:
+Kurama ships a complete PSR-7 implementation plus PSR-17 factories. The lightweight `Kurama\Request` / `Response` remain unchanged.
 
 ```php
-$psrResponse = $app->handlePsr($psrRequest, $responseFactory);
+use Kurama\Http\ServerRequest;
+
+$psrResponse = $app->handlePsr7(new ServerRequest('GET', '/users/42'));
 ```
 
 See [docs/interoperability.md](docs/interoperability.md).

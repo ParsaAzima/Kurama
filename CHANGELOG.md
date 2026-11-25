@@ -2,6 +2,16 @@
 
 Kurama follows [Semantic Versioning](https://semver.org/). This file records user-visible changes.
 
+## 1.1.0 — 2026-11-26
+
+Additive release, fully backward compatible with 1.0.0.
+
+- Full PSR-7 implementation: `Kurama\Http\Uri`, `Stream`, `Request`, `ServerRequest`, `Response`, `UploadedFile`.
+- PSR-17 factories for URI, stream, request, server request, response and uploaded files.
+- `Application::handlePsr7(ServerRequestInterface): ResponseInterface`.
+- `PsrBridge` now converts to/from real PSR-7 messages.
+- Added `psr/http-message` and `psr/http-factory` runtime dependencies.
+
 ## 1.0.0 — 2026-11-25
 
 First stable release. Public API is frozen for the 1.x line. Built by **berlium**.

@@ -32,6 +32,7 @@ Kurama grows in small, opt-in layers. The router stays the core; everything else
 | `v0.14.0` | Long-running worker server | Released |
 | `v0.15.0` | Third-party engines and view cache | Released |
 | `v1.0.0` | API freeze and stable release | Released |
+| `v1.1.0` | Full PSR-7 / PSR-17 support | Released |
 
 Milestones are feature-driven, not date-driven. A version ships when its acceptance criteria are met.
 
@@ -172,6 +173,13 @@ Explicitly out of scope: global helper functions, DI containers, templates.
 - Stable Composer constraint: `kurama/framework:^1.0`.
 - Maintained by **berlium**; version command and package metadata updated.
 - CI, benchmarks, 206 PHPUnit tests and full documentation are part of the release gate.
+
+## v1.1.0 — Full PSR-7 / PSR-17 support (released)
+
+- `Kurama\Http` PSR-7 classes and six PSR-17 factories.
+- `Application::handlePsr7()` with real `ServerRequestInterface` / `ResponseInterface`.
+- `PsrBridge` conversions to/from real PSR-7 messages.
+- Backward-compatible additive release; 215 PHPUnit tests.
 
 ## Explicit non-goals
 
