@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kurama;
 
 use InvalidArgumentException;
+use Kurama\Bridge\PsrBridge;
 use Kurama\Exceptions\HttpException;
 use Kurama\Exceptions\MethodNotAllowedException;
 use Kurama\Exceptions\RouteNotFoundException;
@@ -278,10 +279,25 @@ class Application
         );
     }
 
-    /** Load cached route definitions. Returns false when caching is off or no cache exists. */
+    /** @return list<string> */
+    private function cacheSources(): array
+    {
+        $sources = $this->config('route.cache.sources', [
+            $this->basePath . '/config',
+            $this->basePath . '/routes',
+        ]);
+
+        return is_array($sources) ? array_values(array_filter($sources, 'is_string')) : [];
+    }
+
+    /** Load cached route definitions. Returns false when off, missing or stale. */
     public function routesFromCache(): bool
     {
         if (!$this->config('route.cache.enabled', false) || !is_file($this->cachePath())) {
+            return false;
+        }
+
+        if (!RouteCache::isFresh($this->cachePath(), $this->cacheSources())) {
             return false;
         }
 
@@ -293,7 +309,12 @@ class Application
     /** Write the current routes to the cache file. */
     public function cacheRoutes(): void
     {
-        RouteCache::write($this->router, $this->cachePath(), $this->container);
+        RouteCache::write(
+            $this->router,
+            $this->cachePath(),
+            $this->container,
+            $this->cacheSources(),
+        );
     }
 
     /** Load from cache, or run the callback and write a fresh cache. */
@@ -398,6 +419,14 @@ class Application
     public function runConsole(?array $argv = null): int
     {
         return $this->console->run($argv);
+    }
+
+    /** Handle a PSR-7-like request and return a PSR-7-like response. */
+    public function handlePsr(object $psrRequest, object $responseFactory): object
+    {
+        $response = $this->handle(PsrBridge::toKuramaRequest($psrRequest));
+
+        return PsrBridge::toPsrResponse($response, $responseFactory);
     }
 
     private function registerCoreBindings(): void

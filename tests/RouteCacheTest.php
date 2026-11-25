@@ -58,6 +58,32 @@ final class RouteCacheTest extends TestCase
         }
     }
 
+    public function testStaleCacheIsDetected(): void
+    {
+        $directory = sys_get_temp_dir() . '/kurama-fresh-' . bin2hex(random_bytes(4));
+        mkdir($directory, 0775, true);
+        $source = $directory . '/routes.php';
+        $cache = $directory . '/cache.php';
+        file_put_contents($source, '<?php return [];');
+
+        try {
+            RouteCache::write(new Router(), $cache, null, [$source]);
+            self::assertTrue(RouteCache::isFresh($cache, [$source]));
+
+            file_put_contents($source, '<?php // changed');
+            touch($source, time() + 10);
+
+            self::assertFalse(RouteCache::isFresh($cache, [$source]));
+        } finally {
+            foreach ([$source, $cache] as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
+            }
+            rmdir($directory);
+        }
+    }
+
     public function testMissingCacheFileThrows(): void
     {
         $this->expectException(InvalidArgumentException::class);

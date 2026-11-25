@@ -8,21 +8,30 @@ use Closure;
 use InvalidArgumentException;
 
 /**
- * Export/import route definitions to a plain PHP file.
+ * Export/import route definitions to a plain PHP file with source-freshness checks.
  *
  * Closures and anonymous classes cannot be cached. Use class@method,
  * [Class::class, 'method'] or function names for cacheable routes.
  */
 final class RouteCache
 {
-    public static function write(Router $router, string $path, ?Container $container = null): void
-    {
+    public static function write(
+        Router $router,
+        string $path,
+        ?Container $container = null,
+        array $sources = [],
+    ): void {
         $directory = dirname($path);
         if (!is_dir($directory)) {
             @mkdir($directory, 0775, true);
         }
 
-        $export = '<?php' . PHP_EOL . 'return ' . var_export(self::export($router), true) . ';' . PHP_EOL;
+        $data = [
+            'signature' => self::signature($sources),
+            'routes' => self::export($router),
+        ];
+        $export = '<?php' . PHP_EOL . 'return ' . var_export($data, true) . ';' . PHP_EOL;
+
         if (@file_put_contents($path, $export, LOCK_EX) === false) {
             throw new InvalidArgumentException("Unable to write route cache to [{$path}].");
         }
@@ -52,12 +61,15 @@ final class RouteCache
             throw new InvalidArgumentException("Route cache [{$path}] not found.");
         }
 
-        $definitions = require $path;
-        if (!is_array($definitions)) {
+        $data = require $path;
+        if (!is_array($data)) {
             throw new InvalidArgumentException('Route cache must return an array.');
         }
 
+        // Backward compatibility: older caches were a plain route list.
+        $definitions = $data['routes'] ?? $data;
         $router ??= new Router();
+
         foreach ($definitions as $definition) {
             $route = $router->match(
                 $definition['methods'],
@@ -75,6 +87,44 @@ final class RouteCache
         }
 
         return $router;
+    }
+
+    /** Check whether the cached signature still matches the source files. */
+    public static function isFresh(string $path, array $sources = []): bool
+    {
+        if (!is_file($path)) {
+            return false;
+        }
+
+        $data = require $path;
+
+        return is_array($data)
+            && isset($data['signature'])
+            && hash_equals((string) $data['signature'], self::signature($sources));
+    }
+
+    /** Hash file paths, modification times and sizes for the given sources. */
+    public static function signature(array $sources): string
+    {
+        $files = [];
+        foreach ($sources as $source) {
+            $source = (string) $source;
+            if (is_file($source)) {
+                $files[] = [$source, filemtime($source), filesize($source)];
+            } elseif (is_dir($source)) {
+                $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($source));
+                foreach ($iterator as $file) {
+                    if ($file->isFile()) {
+                        $path = $file->getPathname();
+                        $files[] = [$path, filemtime($path), filesize($path)];
+                    }
+                }
+            }
+        }
+
+        usort($files, static fn (array $a, array $b): int => strcmp($a[0], $b[0]));
+
+        return hash('sha256', serialize($files));
     }
 
     /** @return array<string, mixed> */

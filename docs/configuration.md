@@ -62,6 +62,7 @@ Dotted keys passed to `load()` are normalized into nested arrays, so `['views.pa
 | `discovery.enabled` | Read providers from composer extras. | `true` |
 | `route.cache.enabled` | Write/load compiled route definitions. | `false` |
 | `route.cache.path` | Route cache file. | `<project root>/storage/cache/routes.php` |
+| `route.cache.sources` | Files/directories watched for staleness. | `config/` and `routes/` |
 | `options.auto` | Auto-answer `OPTIONS` with 204 + `Allow`. | `true` |
 
 Other keys are stored untouched and can be used by your own code via `$app->config(...)` or by injecting `Kurama\Config`.

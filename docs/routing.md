@@ -143,6 +143,7 @@ Enable production route caching in config:
 $app = AppFactory::create([
     'route.cache.enabled' => true,
     'route.cache.path' => __DIR__ . '/../storage/cache/routes.php',
+    'route.cache.sources' => [__DIR__ . '/../config', __DIR__ . '/../routes'],
 ]);
 
 $app->loadRoutes(function (Application $app): void {
@@ -151,6 +152,8 @@ $app->loadRoutes(function (Application $app): void {
 ```
 
 The first request registers the routes and writes a plain PHP file. Later requests load that file and skip the callback. `Application::routesFromCache()` and `cacheRoutes()` are available directly.
+
+The cache records a signature of `route.cache.sources` (file mtimes and sizes). When any source changes, the cache is considered stale and `loadRoutes()` re-registers routes and rewrites the cache automatically. Use `composer console -- cache:clear` to delete it manually.
 
 Cacheable handlers must be function names, `Class@method`, `[Class::class, 'method']` or invokable classes. **Closures and anonymous classes cannot be cached** and throw `InvalidArgumentException`; use class-based handlers when caching is enabled. Middleware follows the same rule.
 

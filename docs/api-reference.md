@@ -23,6 +23,7 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `urlForHandler(mixed $handler, array $params = []): string` | Generate a URL from a handler. |
 | `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
 | `runConsole(?array $argv = null): int` | Run the CLI kernel and return an exit code. |
+| `handlePsr(object $psrRequest, object $responseFactory): object` | Handle a PSR-7-like request and return a PSR-7-like response. |
 | `console` (public readonly `Kurama\Console\Console`) | Console kernel. |
 | `config(string $key, mixed $default = null)` / `env(...)` | Read configuration / environment values. |
 | `validate(array $data, array $rules): array` | Validate and return validated fields, or throw `ValidationException`. |
@@ -55,6 +56,7 @@ All classes live under the `Kurama` namespace. Exceptions live under `Kurama\Exc
 | `urlForHandler(mixed $handler, array $params = []): string` | Generate a URL from a handler. |
 | `routesFromCache(): bool`, `cacheRoutes(): void`, `loadRoutes(callable): void` | Persistent route cache helpers. |
 | `runConsole(?array $argv = null): int` | Run the CLI kernel and return an exit code. |
+| `handlePsr(object $psrRequest, object $responseFactory): object` | Handle a PSR-7-like request and return a PSR-7-like response. |
 | `console` (public readonly `Kurama\Console\Console`) | Console kernel. |
 | `resolve(string $method, string $uri): ?array` | `['route' => Route, 'parameters' => array]` or `null`. |
 | `dispatch(string $method, string $uri): mixed` | Execute handler, return raw result. |
@@ -138,6 +140,8 @@ See [routing.md](routing.md) for the route caching section.
 | `RouteCache::write(Router $router, string $path, ?Container $container = null): void` | Export routes to a PHP file. |
 | `RouteCache::export(Router $router): array` | Return the export array. |
 | `RouteCache::load(string $path, ?Router $router = null, ?Container $container = null): Router` | Rebuild a router from a cache file. |
+| `RouteCache::isFresh(string $path, array $sources): bool`, `signature(array $sources): string` | Staleness checks. |
+| `PsrBridge` | `isPsrRequest()`, `toKuramaRequest()`, `toKuramaResponse()`, `toPsrResponse()`. |
 
 ## Providers, discovery and events
 
@@ -155,7 +159,7 @@ See [validation.md](validation.md), [session.md](session.md), [csrf.md](csrf.md)
 
 | Class | Key members |
 | --- | --- |
-| `Validator` | `make()`, `passes()`, `fails()`, `errors()`, `validated()`. |
+| `Validator` | `make()`, `extend()`, `passes()`, `fails()`, `errors()`, `validated()`. |
 | `Session` | `fake()`, `start()`, `get()`, `set()`, `has()`, `remove()`, `all()`, `flush()`, `flash()`, `flashed()`, `regenerate()`, `destroy()`. |
 | `Csrf` | `token()`, `field()`, `validate()`, `validateRequest()`, `regenerate()`, `middleware()`. |
 | `Cookie` | `delete()`, `toHeader()`; public name/value/attributes. |

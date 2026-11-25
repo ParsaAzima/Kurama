@@ -68,6 +68,41 @@ final class ConsoleTest extends TestCase
         self::assertStringContainsString('HELLO PARSA', $capture->output);
     }
 
+    public function testCacheClearCommandRemovesFile(): void
+    {
+        $directory = sys_get_temp_dir() . '/kurama-clear-' . bin2hex(random_bytes(4));
+        mkdir($directory, 0775, true);
+        $path = $directory . '/routes.php';
+        file_put_contents($path, '<?php return [];');
+
+        $capture = new ConsoleCapture();
+        $app = AppFactory::create([
+            'debug' => true,
+            'discovery.enabled' => false,
+            'route.cache.path' => $path,
+        ]);
+        $console = new Console(
+            $app,
+            static function (string $message) use ($capture): void {
+                $capture->output .= $message;
+            },
+            static function (string $message) use ($capture): void {
+                $capture->error .= $message;
+            },
+        );
+
+        try {
+            self::assertSame(0, $console->run(['cache:clear']));
+            self::assertFileDoesNotExist($path);
+            self::assertStringContainsString('cleared', $capture->output);
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+            }
+            rmdir($directory);
+        }
+    }
+
     public function testInputParsesOptionsAndArguments(): void
     {
         $input = new Input(['greet', 'Parsa', '--name=Ali', '--verbose', 'extra']);

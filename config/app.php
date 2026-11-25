@@ -21,6 +21,7 @@ return [
 
     'route.cache.enabled' => false,
     'route.cache.path' => dirname(__DIR__) . '/storage/cache/routes.php',
+    'route.cache.sources' => [dirname(__DIR__) . '/config', dirname(__DIR__) . '/routes'],
 
     'options.auto' => true,
 ];

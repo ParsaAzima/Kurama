@@ -169,6 +169,7 @@ For production, enable route caching so route definitions are compiled once:
 $app = AppFactory::create([
     'route.cache.enabled' => true,
     'route.cache.path' => __DIR__ . '/../storage/cache/routes.php',
+    'route.cache.sources' => [__DIR__ . '/../config', __DIR__ . '/../routes'],
 ]);
 
 $app->loadRoutes(function (Application $app): void {
@@ -176,7 +177,7 @@ $app->loadRoutes(function (Application $app): void {
 });
 ```
 
-Closure handlers cannot be cached; use class methods or function names. See [docs/routing.md](docs/routing.md).
+Closure handlers cannot be cached; use class methods or function names. The cache is invalidated automatically when `route.cache.sources` change, or manually with `composer console -- cache:clear`. See [docs/routing.md](docs/routing.md).
 
 ## HTTP request
 
@@ -317,6 +318,16 @@ composer console -- version
 ```
 
 Custom commands extend `Kurama\Console\Command` and are registered with `$app->console()->command(new MyCommand())`. `runConsole($argv)` returns an exit code; see [docs/cli.md](docs/cli.md).
+
+## Interoperability
+
+Kurama is not PSR-7 compliant, but it can convert to/from PSR-7 style objects without requiring the PSR packages:
+
+```php
+$psrResponse = $app->handlePsr($psrRequest, $responseFactory);
+```
+
+See [docs/interoperability.md](docs/interoperability.md).
 
 ## Templates
 

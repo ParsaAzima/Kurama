@@ -16,6 +16,7 @@ Start here:
 | Service providers and auto-discovery | [service-providers.md](service-providers.md) |
 | Events | [events.md](events.md) |
 | CLI kernel | [cli.md](cli.md) |
+| PSR-7 interoperability bridge | [interoperability.md](interoperability.md) |
 | Configuration | [configuration.md](configuration.md) |
 | Environment variables | [environment.md](environment.md) |
 | Validation | [validation.md](validation.md) |

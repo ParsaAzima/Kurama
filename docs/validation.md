@@ -47,10 +47,36 @@ $app->post('/signup', function (Request $request) use ($app): Response {
 | `regex:/pattern/` | Custom PCRE (a `~` delimiter is added when absent). |
 | `confirmed` | Field must equal `field_confirmation`. |
 | `same:other` | Field must equal `other`. |
+| `different:other` | Field must differ from `other`. |
+| `required_if:field,value` | Required only when `field` equals `value`. |
+| `url`, `uuid`, `json` | Format checks. |
+| `alpha`, `alpha_num`, `digits:N` | Character checks. |
+| `between:min,max` | Numeric value or string length range. |
 
 Unknown rules throw `InvalidArgumentException`.
 
-## Custom messages
+## Dotted fields
+
+```php
+Validator::make(
+    ['user' => ['email' => 'bad']],
+    ['user.email' => 'required|email'],
+);
+```
+
+Errors and validated keys keep the dotted name.
+
+## Custom rules and messages
+
+```php
+$validator = Validator::make($data, $rules)->extend(
+    'starts_with_ab',
+    static fn (mixed $value): bool => is_string($value) && str_starts_with($value, 'ab'),
+    'Code must start with ab.',
+);
+```
+
+A custom rule receives `($value, $parameter, $data)`. Per-field messages still win over rule messages:
 
 ```php
 new Validator($data, $rules, ['email.required' => 'Email is mandatory.']);
@@ -58,6 +84,6 @@ new Validator($data, $rules, ['email.required' => 'Email is mandatory.']);
 
 ## API
 
-`make()`, `passes()`, `fails()`, `errors()`, `validated()`.
+`make()`, `extend()`, `passes()`, `fails()`, `errors()`, `validated()`.
 
 `ValidationException::errors()` exposes the grouped error array.

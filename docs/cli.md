@@ -24,6 +24,7 @@ php bin/kurama list
 | `version` | Kurama and PHP versions. |
 | `route:list` | List registered methods, patterns and names. |
 | `cache:routes` | Write the route cache file. |
+| `cache:clear` | Delete the route cache file. |
 
 ## Custom commands
 

@@ -6,6 +6,7 @@ namespace Kurama\Console;
 
 use Closure;
 use Kurama\Application;
+use Kurama\Console\Commands\CacheClearCommand;
 use Kurama\Console\Commands\CacheRoutesCommand;
 use Kurama\Console\Commands\HelpCommand;
 use Kurama\Console\Commands\ListCommand;
@@ -51,6 +52,7 @@ final class Console
             VersionCommand::class,
             RouteListCommand::class,
             CacheRoutesCommand::class,
+            CacheClearCommand::class,
         ] as $command) {
             $this->command($command);
         }
